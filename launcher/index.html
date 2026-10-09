@@ -96,6 +96,8 @@ body.listmode main{padding-bottom:20px}
 .pick-ic{width:84px;height:84px;margin:0 auto 18px;border-radius:22px;display:grid;place-items:center;font-size:30px;color:#fff;
   background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 10px 40px rgba(34,211,238,.25)}
 .pick-t{font-size:20px;font-weight:700;margin-bottom:6px}
+.cnt{font-size:.85em;font-weight:600;opacity:.6;margin-left:2px}
+.section .cnt{opacity:.75;font-weight:700}
 /* systems: badge, box art, fallback tiles */
 .sys{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:1px 5px;border-radius:5px;vertical-align:1px;
   color:var(--s);border:1px solid color-mix(in srgb,var(--s) 45%,transparent);background:color-mix(in srgb,var(--s) 12%,transparent)}
@@ -196,7 +198,9 @@ let sysFilter = (() => { try { return localStorage.getItem("sys") || "all"; } ca
 function renderSysFilter() {
   const present = ["DS", "GBA", "GBC", "GB"].filter(s => state.games.some(g => g.system === s));
   if (sysFilter !== "all" && !present.includes(sysFilter)) sysFilter = "all";
-  const html = present.length > 1 ? ["all", ...present].map(s => `<button data-f="${s}" class="${s === sysFilter ? "on" : ""}">${s === "all" ? "All" : s}</button>`).join("") : "";
+  const count = s => s === "all" ? state.games.length : state.games.filter(g => g.system === s).length;
+  $("#q").placeholder = `Search ${count(sysFilter)} ${sysFilter === "all" ? "" : sysFilter + " "}game${count(sysFilter) === 1 ? "" : "s"}…`;
+  const html = present.length > 1 ? ["all", ...present].map(s => `<button data-f="${s}" class="${s === sysFilter ? "on" : ""}">${s === "all" ? "All" : s} <span class="cnt">${count(s)}</span></button>`).join("") : "";
   if ($("#sys").innerHTML !== html) {
     $("#sys").innerHTML = html; $("#sys").style.display = html ? "" : "none";
     $("#sys").querySelectorAll("button").forEach(b => b.onclick = () => {
@@ -334,7 +338,7 @@ function sortedGroups() {
   const rest = games.filter(g => !g.last).sort(byName);
   return [["Recently played", played], [played.length ? "Not played yet" : "", rest]].filter(([, l]) => l.length);
 }
-const sectionLabel = label => label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label}</div>` : "";
+const sectionLabel = (label, n) => label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label} <span class="cnt">${n}</span></div>` : "";
 const isPlaying = g => state.running && state.running.id === g.id;
 
 function renderGrid() {
@@ -345,7 +349,7 @@ function renderGrid() {
   document.body.classList.remove("listmode");
   if (!ordered.length) { $("#main").innerHTML = `<div class="empty">No games found. Put .nds files in a folder inside ~/Games.</div>`; return; }
   $("#main").innerHTML = groups.map(([label, list]) => `
-    ${sectionLabel(label)}
+    ${sectionLabel(label, list.length)}
     <div class="grid">${list.map(g => `
       <div class="card" data-id="${esc(g.id)}" tabindex="0">
         ${isPlaying(g) ? `<span class="badge play">PLAYING</span>` : ""}
@@ -371,7 +375,7 @@ function renderList(groups) {
   }
   const sel = current && current.id;
   $("#listCol").innerHTML = !ordered.length ? `<div class="empty">No games found.</div>` : groups.map(([label, list]) => `
-    ${sectionLabel(label)}
+    ${sectionLabel(label, list.length)}
     ${list.map(g => `
       <div class="li${g.id === sel ? " sel" : ""}" data-id="${esc(g.id)}" tabindex="0">
         <div class="ic">${iconHTML(g)}</div>
