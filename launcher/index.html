@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Emulaunch</title>
+<title>EmuLaun</title>
 <style>
 :root{
   --bg:#050507; --panel:#0e0e12; --panel2:#15151b; --ink:#f2f3f7; --muted:#8a8d9b; --line:#22232c;
@@ -177,7 +177,7 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 </head>
 <body>
 <header>
-  <h1>Emu<span>launch</span></h1>
+  <h1>Emu<span>Laun</span></h1>
   <input type="search" id="q" placeholder="Search games…">
   <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
   <div class="seg" id="sys"></div>
@@ -292,7 +292,7 @@ function paintColors(root) {
 async function refresh() {
   try { state = await api("/api/state"); }
   catch {
-    $("#main").innerHTML = `<div class="empty">The launcher has stopped (it shuts down when idle so nothing runs in the background).<br>Click <b>Emulaunch</b> in your Dock to open it again.</div>`;
+    $("#main").innerHTML = `<div class="empty">The launcher has stopped (it shuts down when idle so nothing runs in the background).<br>Click <b>EmuLaun</b> in your Dock to open it again.</div>`;
     return;
   }
   renderHeader();

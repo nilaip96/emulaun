@@ -1,18 +1,19 @@
 #!/bin/bash
-# Emulaunch installer (macOS).
+# EmuLaun installer (macOS).
 #   ./install.sh          install / update everything
-#   ./install.sh --dock   ...and add Emulaunch to the Dock
+#   ./install.sh --dock   ...and add EmuLaun to the Dock
 # Safe to re-run. Never touches your games or saves.
 set -euo pipefail
 cd "$(dirname "$0")"
 REPO="$PWD"
-GAMES="$HOME/Games"
+GAMES="$REPO/games"   # your library (gitignored)
+DATA="$REPO/data"     # downloaded cheat databases (gitignored)
 DB_URL="https://raw.githubusercontent.com/szTheory/NDS-Cheat-Databases/HEAD/Cheat%20Databases/cheats.xml"
 
 say()  { printf "\033[1;36m==>\033[0m %s\n" "$*"; }
 fail() { printf "\033[1;31merror:\033[0m %s\n" "$*" >&2; exit 1; }
 
-[ "$(uname)" = "Darwin" ] || fail "Emulaunch only runs on macOS."
+[ "$(uname)" = "Darwin" ] || fail "EmuLaun only runs on macOS."
 
 # 1. tools
 if ! xcrun --find swiftc >/dev/null 2>&1; then
@@ -57,65 +58,71 @@ if [ ! -f "$MGBA_CFG" ]; then  # same keys as the suggested melonDS setup; auto-
 fi
 
 # 3. folders + offline cheat databases
-mkdir -p "$GAMES/DS" "$GAMES/GBA" "$GAMES/GBC" "$GAMES/GB" "$GAMES/cheat-tools"
-if [ ! -s "$GAMES/cheat-tools/cheats.xml" ]; then
+mkdir -p "$GAMES/DS" "$GAMES/GBA" "$GAMES/GBC" "$GAMES/GB" "$DATA"
+if [ ! -s "$DATA/cheats.xml" ]; then
   say "Downloading the NDS cheat database (~100 MB, one time - everything works offline after this)..."
-  curl -fL --progress-bar -o "$GAMES/cheat-tools/cheats.xml.part" "$DB_URL"
-  mv "$GAMES/cheat-tools/cheats.xml.part" "$GAMES/cheat-tools/cheats.xml"
+  curl -fL --progress-bar -o "$DATA/cheats.xml.part" "$DB_URL"
+  mv "$DATA/cheats.xml.part" "$DATA/cheats.xml"
 else
   say "Cheat database already downloaded"
 fi
 
-if [ ! -d "$GAMES/cheat-tools/libretro-database" ]; then
+if [ ! -d "$DATA/libretro-database" ]; then
   say "Downloading Game Boy / GBA cheats + game checksums from libretro-database (~60 MB, one time)..."
-  git clone -q --depth 1 --filter=blob:none --sparse https://github.com/libretro/libretro-database.git "$GAMES/cheat-tools/libretro-database"
-  git -C "$GAMES/cheat-tools/libretro-database" sparse-checkout set \
+  git clone -q --depth 1 --filter=blob:none --sparse https://github.com/libretro/libretro-database.git "$DATA/libretro-database"
+  git -C "$DATA/libretro-database" sparse-checkout set \
     "cht/Nintendo - Game Boy" "cht/Nintendo - Game Boy Color" "cht/Nintendo - Game Boy Advance" "metadat/no-intro"
 else
   say "Game Boy cheat data already downloaded"
 fi
 
 # 4. build + install the app
-say "Building Emulaunch.app..."
+say "Building EmuLaun.app..."
 ./app/build.sh
 # quit a running copy (by process, not by name: naming an app that no longer exists makes macOS ask "Where is ...?")
-pkill -f "/Applications/(Emulaunch|DS Launcher).app/Contents/MacOS/" 2>/dev/null || true
-rm -rf "/Applications/DS Launcher.app"   # this app's previous name
-if defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/DS%20Launcher.app"; then
-  say "Pointing the Dock icon at Emulaunch"
-  python3 - <<'PY'
-import plistlib, subprocess
-raw = subprocess.run(["defaults", "export", "com.apple.dock", "-"], capture_output=True).stdout
-d = plistlib.loads(raw)
-for t in d.get("persistent-apps", []):
-    fd = t.get("tile-data", {}).get("file-data", {})
-    if "DS%20Launcher.app" in fd.get("_CFURLString", ""):
-        fd["_CFURLString"] = "file:///Applications/Emulaunch.app/"
-        t["tile-data"]["file-label"] = "Emulaunch"
-        t["tile-data"].pop("book", None)
-subprocess.run(["defaults", "import", "com.apple.dock", "-"], input=plistlib.dumps(d))
-PY
-  killall Dock
-fi
-rm -rf "/Applications/Emulaunch.app"
-cp -R "app/build/Emulaunch.app" /Applications/
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/Emulaunch.app" || true
+OLD_NAMES=("DS Launcher" "Emulaunch")   # this app's previous names
+pkill -f "/Applications/(EmuLaun|DS Launcher|Emulaunch).app/Contents/MacOS/" 2>/dev/null || true
+for old in "${OLD_NAMES[@]}"; do rm -rf "/Applications/$old.app"; done
+rm -rf "/Applications/EmuLaun.app"
+cp -R "app/build/EmuLaun.app" /Applications/
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/EmuLaun.app" || true
 
-# 5. optional Dock icon
-if [ "${1:-}" = "--dock" ] && ! defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/DS%20Launcher.app"; then
-  say "Adding Emulaunch to the Dock"
-  defaults write com.apple.dock persistent-apps -array-add \
-    '<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>file:///Applications/DS%20Launcher.app/</string><key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>'
-  killall Dock
-fi
+# 5. Dock: move an icon left by an older name over to EmuLaun; with --dock, add one if there is none
+DOCK_CHANGED=$(python3 - "${1:-}" <<'PY'
+import plistlib, subprocess, sys
+want = "file:///Applications/EmuLaun.app/"
+old = ("DS%20Launcher.app", "Emulaunch.app")
+d = plistlib.loads(subprocess.run(["defaults", "export", "com.apple.dock", "-"], capture_output=True).stdout)
+apps = d.setdefault("persistent-apps", [])
+changed, present = False, False
+for t in apps:
+    fd = t.get("tile-data", {}).get("file-data", {})
+    url = fd.get("_CFURLString", "")
+    if any(o in url for o in old):
+        fd["_CFURLString"], fd["_CFURLStringType"] = want, 15
+        t["tile-data"]["file-label"] = "EmuLaun"
+        t["tile-data"].pop("book", None)
+        changed = True
+    if fd.get("_CFURLString") == want:
+        present = True
+if sys.argv[1] == "--dock" and not present:
+    apps.append({"tile-type": "file-tile", "tile-data": {"file-label": "EmuLaun",
+                 "file-data": {"_CFURLString": want, "_CFURLStringType": 15}}})
+    changed = True
+if changed:
+    subprocess.run(["defaults", "import", "com.apple.dock", "-"], input=plistlib.dumps(d))
+print("yes" if changed else "no")
+PY
+)
+if [ "$DOCK_CHANGED" = "yes" ]; then say "Updated the Dock icon"; killall Dock; fi
 
 cat <<EOF
 
-$(printf "\033[1;32m✓ Emulaunch is installed.\033[0m")
+$(printf "\033[1;32m✓ EmuLaun is installed.\033[0m")
 
 Next:
   1. Put your own game backups (.nds .gba .gbc .gb, or .zip/.7z containing them) in ~/Downloads, then run:
        python3 "$REPO/tools/add_games.py"
-     It copies them into ~/Games and installs cheats + a cheat guide for each.
-  2. Open "Emulaunch" from Applications (or Spotlight).
+     It copies them into the repo's games/ folder and installs cheats + a cheat guide for each.
+  2. Open "EmuLaun" from Applications (or Spotlight).
 EOF

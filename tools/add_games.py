@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Import new games from ~/Downloads into ~/Games and install their cheats.
+"""Import new games from ~/Downloads into the repo's games/ folder and install their cheats.
 
-Systems: Nintendo DS (.nds -> ~/Games/DS, played in melonDS) and Game Boy / Color /
-Advance (.gb .gbc .gba -> ~/Games/GB, GBC, GBA, played in mGBA).
+Systems: Nintendo DS (.nds -> games/DS, played in melonDS) and Game Boy / Color /
+Advance (.gb .gbc .gba -> games/GB, GBC, GBA, played in mGBA).
 
 usage:  python3 add_games.py            (do it)
         python3 add_games.py --dry-run  (just show what would happen)
 
 For each game file in Downloads, or .zip / .7z containing one:
-  * skip it if that exact game is already in ~/Games
+  * skip it if that exact game is already in games/
   * copy it into its system's folder
   * DS: match the offline cheat database (cheats.xml) by game ID + header checksum and
     write <game>.mch (melonDS cheat file: auto-picked Favorites + every code, all off)
@@ -23,12 +23,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gameboy
 
 HOME = os.path.expanduser("~")
-GAMES = os.path.join(HOME, "Games")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GAMES = os.path.join(REPO, "games")
 DOWNLOADS = os.path.join(HOME, "Downloads")
 HERE = os.path.dirname(os.path.abspath(__file__))
-DB = os.environ.get("DS_CHEAT_DB", os.path.join(GAMES, "cheat-tools", "cheats.xml"))
+DB = os.environ.get("DS_CHEAT_DB", os.path.join(REPO, "data", "cheats.xml"))
 DRY = "--dry-run" in sys.argv
 
+SHOW_GAMES = GAMES.replace(HOME, "~", 1)
 GAME_EXTS = (".nds", ".gba", ".gbc", ".gb")
 KEYS = "D-Pad = arrow keys    A = D    B = A    X = W    Y = S\n  L = Q    R = E    Start = Return    Select = Shift"
 
@@ -43,7 +45,7 @@ def header_key(head):
 
 def existing_games():
     keys = set()
-    for folder in ("DS", "GBA", "GBC", "GB", "Pokemon"):
+    for folder in ("DS", "GBA", "GBC", "GB"):
         d = os.path.join(GAMES, folder)
         for f in os.listdir(d) if os.path.isdir(d) else []:
             fp = os.path.join(d, f)
@@ -258,17 +260,17 @@ def write_guide(path, title, rom_rel, cats, favs, exact, system="DS"):
     g = [f"{title.upper()} - CHEAT GUIDE", "=" * (len(title) + 14), "",
          "Everything here works fully offline. No internet needed.", "",
          "HOW TO USE"] + ([
-         "  1. Open Emulaunch (Dock) and click this game, or in melonDS use",
-         f"     File > Open ROM... > ~/Games/{rom_rel}",
-         "  2. Make sure the 'Cheats' switch in the game's Emulaunch panel is ON",
+         "  1. Open EmuLaun (Dock) and click this game, or in melonDS use",
+         f"     File > Open ROM... > {SHOW_GAMES}/{rom_rel}",
+         "  2. Make sure the 'Cheats' switch in the game's EmuLaun panel is ON",
          "     (or System > Enable cheats in melonDS).",
-         "  3. Tick cheats in Emulaunch (applies next time you start the game), or",
+         "  3. Tick cheats in EmuLaun (applies next time you start the game), or",
          "     in melonDS: System > Setup cheat codes (applies right away).",
          "  4. 'Always on' cheats just work. Others need the button combo shown -",
          "     press all the buttons at the same time.", ""] if system == "DS" else [
-         "  1. Open Emulaunch (Dock) and click this game - it opens in mGBA. Or in mGBA:",
-         f"     File > Load ROM... > ~/Games/{rom_rel}",
-         "  2. Tick cheats in Emulaunch (applies next time you start the game), or",
+         "  1. Open EmuLaun (Dock) and click this game - it opens in mGBA. Or in mGBA:",
+         f"     File > Load ROM... > {SHOW_GAMES}/{rom_rel}",
+         "  2. Tick cheats in EmuLaun (applies next time you start the game), or",
          "     in mGBA: Tools > Cheats... (applies right away).",
          "  3. If a 'Master Code' is listed, tick it too - many codes need it.", ""]) + [
          "YOUR CONTROLS (DS button = keyboard key)",
@@ -300,7 +302,7 @@ def write_guide(path, title, rom_rel, cats, favs, exact, system="DS"):
         if c["note"]:
             g.append(f"   note: {clean(c['note'], 300)}")
         if len(c["cheats"]) > 60:
-            g.append("   (long list - browse it in Emulaunch)")
+            g.append("   (long list - browse it in EmuLaun)")
             continue
         for ch in c["cheats"]:
             g.append(f"   - {ch['name']}" + (f" - {clean(ch['note'], 200)}" if ch["note"] else ""))

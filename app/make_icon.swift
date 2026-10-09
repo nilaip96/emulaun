@@ -1,4 +1,4 @@
-// Draws the Emulaunch app icon (a game cartridge with a launch button) and writes an .iconset folder.
+// Draws the EmuLaun app icon (a game cartridge with a launch button) and writes an .iconset folder.
 // usage: swift make_icon.swift <out.iconset>
 import AppKit
 

@@ -20,6 +20,10 @@ libretro-database/
 *Cheat Guide.txt
 backups/
 
+# the repo's local data (your library and downloaded databases)
+games/
+data/
+
 # build output
 app/build/
 app/AppIcon.iconset/

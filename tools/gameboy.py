@@ -11,7 +11,7 @@ SYSTEMS = {  # extension -> (folder, libretro system name)
     ".gbc": ("GBC", "Nintendo - Game Boy Color"),
     ".gb": ("GB", "Nintendo - Game Boy"),
 }
-LIBRETRO_DB = os.path.join(os.path.expanduser("~"), "Games", "cheat-tools", "libretro-database")
+LIBRETRO_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "libretro-database")
 
 
 def system_for(path):

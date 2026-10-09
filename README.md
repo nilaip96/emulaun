@@ -1,11 +1,11 @@
-<p align="center"><img src="docs/icon.png" width="128" alt="Emulaunch icon"></p>
+<p align="center"><img src="docs/icon.png" width="128" alt="EmuLaun icon"></p>
 
-<h1 align="center">Emulaunch</h1>
+<h1 align="center">EmuLaun</h1>
 
 <p align="center">A small, offline game library for macOS: your <b>Nintendo DS, Game Boy Advance, Game Boy Color and Game Boy</b> games in one place, one-click play in <a href="https://melonds.kuribo64.net/">melonDS</a> or <a href="https://mgba.io/">mGBA</a>, and a checkbox list of cheats for every game.</p>
 
-<p align="center"><img src="docs/screenshot-grid.png" alt="Emulaunch grid view" width="900"></p>
-<p align="center"><img src="docs/screenshot-list.png" alt="Emulaunch list view with game details" width="900"></p>
+<p align="center"><img src="docs/screenshot-grid.png" alt="EmuLaun grid view" width="900"></p>
+<p align="center"><img src="docs/screenshot-list.png" alt="EmuLaun list view with game details" width="900"></p>
 <p align="center"><sub>Screenshots use a made-up demo library (<code>docs/make_demo.py</code>), not real games.</sub></p>
 
 ---
@@ -21,7 +21,7 @@
   - **Play**, which starts melonDS with the game
   - your in-game save and save states with their times (F1–F8 loads a state)
   - every cheat as a checkbox, with a Favorites folder at the top, search, and "pick one" folders
-- **Cheat importer** (`tools/add_games.py`). It takes games from `~/Downloads` (`.nds`, `.gba`, `.gbc`, `.gb`, or a `.zip`/`.7z` containing one), files them into `~/Games/<system>`, and installs cheats:
+- **Cheat importer** (`tools/add_games.py`). It takes games from `~/Downloads` (`.nds`, `.gba`, `.gbc`, `.gb`, or a `.zip`/`.7z` containing one), files them into the repo's `games/<system>` folder, and installs cheats:
   - **DS:** matched by game ID and header checksum against DeadSkullzJr's cheat database, written as a melonDS `.mch` file
   - **GB/GBC/GBA:** identified by CRC32 against No-Intro's checksum list, with cheats from libretro written as an mGBA `.cheats` file, plus box art
   - every game also gets an automatic Favorites list (all codes off by default) and a plain-text cheat guide
@@ -34,8 +34,8 @@
 Requires macOS 12+ (Intel or Apple Silicon).
 
 ```bash
-git clone https://github.com/nilaip96/emulaunch.git
-cd emulaunch
+git clone https://github.com/nilaip96/emulaun.git
+cd emulaun
 ./install.sh --dock
 ```
 
@@ -43,8 +43,8 @@ The installer:
 
 1. Installs Apple's Command Line Tools if they're missing. A system dialog appears; finish it and re-run the script.
 2. Downloads **melonDS** and **mGBA** from their official GitHub releases, if they aren't already in `/Applications`. It also sets mGBA's keys to match the suggested melonDS keys.
-3. Creates `~/Games/DS`, `GBA`, `GBC`, `GB` and `cheat-tools`, then downloads the cheat data once: the DS database (about 100 MB) and libretro's Game Boy cheats and checksums (about 60 MB).
-4. Builds **Emulaunch.app** from source and puts it in `/Applications`.
+3. Creates `games/DS`, `GBA`, `GBC` and `GB` plus `data/` inside the repo, then downloads the cheat data once: the DS database (about 100 MB) and libretro's Game Boy cheats and checksums (about 60 MB).
+4. Builds **EmuLaun.app** from source and puts it in `/Applications`.
 5. With `--dock`, adds it to your Dock.
 
 The script is safe to re-run, and it never touches your games or saves.
@@ -59,9 +59,9 @@ python3 tools/add_games.py --dry-run  # just show what it would do
 ```
 
 - Games already in your library are skipped.
-- Each game goes into its system's folder: `~/Games/DS`, `GBA`, `GBC` or `GB`.
+- Each game goes into its system's folder: `games/DS`, `GBA`, `GBC` or `GB`.
 - Your Downloads folder is never modified.
-- New games appear in Emulaunch on their own.
+- New games appear in EmuLaun on their own.
 
 ## Using cheats
 
@@ -93,17 +93,33 @@ python3 launcher/launcher.py   # opens http://127.0.0.1:8765, stops when you clo
 | `launcher/index.html` | The whole UI, with no external libraries. |
 | `app/main.swift` | Native window (WKWebView). Starts the server on launch and stops it on quit. |
 | `app/make_icon.swift` | Draws the app icon in code. |
-| `app/build.sh` | Builds `Emulaunch.app`. |
+| `app/build.sh` | Builds `EmuLaun.app`. |
 | `tools/add_games.py` | Game importer and cheat installer. |
 | `install.sh` | One-shot setup. |
 
-Your files live in `~/Games/<system>/` and the repo never stores them:
-- `Game.nds` / `.gba` / `.gbc` / `.gb`: the game
-- `Game.sav`: in-game save
-- `Game.ml1`–`ml8` (melonDS) or `Game.ss1`–`ss9` (mGBA): save states
-- `Game.mch` (melonDS) or `Game.cheats` (mGBA): cheat file
-- `Game.png`: box art (GB/GBC/GBA)
-- `Game - Cheat Guide.txt`: cheat guide
+### Folder layout
+
+The repo defines where everything lives. Your personal files sit inside it but are gitignored, so they never get committed.
+
+```
+emulaun/
+├── launcher/   app/   tools/   docs/    the code (committed)
+├── install.sh  README.md
+├── games/                              your library (gitignored)
+│   ├── DS/   GBA/   GBC/   GB/
+│   │   ├── Game.nds / .gba / .gbc / .gb     the game
+│   │   ├── Game.sav                          in-game save
+│   │   ├── Game.ml1–8 / Game.ss1–9           save states (melonDS / mGBA)
+│   │   ├── Game.mch / Game.cheats            cheat file (melonDS / mGBA)
+│   │   ├── Game.png                          box art (GB/GBC/GBA)
+│   │   └── Game - Cheat Guide.txt
+├── data/                               downloaded cheat databases (gitignored)
+│   ├── cheats.xml                      DS
+│   └── libretro-database/              GB/GBC/GBA cheats + No-Intro checksums
+└── backups/                            anything you want to keep around (gitignored)
+```
+
+The installed app remembers which repo it was built from, so keep the repo where it is, or re-run `./install.sh` after moving it.
 
 ## Credits
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Emulaunch - a small offline game library for melonDS (DS) and mGBA (GB/GBC/GBA).
+"""EmuLaun - a small offline game library for melonDS (DS) and mGBA (GB/GBC/GBA).
 
 Run:  python3 launcher.py      (opens http://127.0.0.1:8765 in your browser)
-Everything is local: it reads ~/Games, launches the emulator, and edits cheat files
+Everything is local: it reads the repo's games/ folder, launches the emulator, and edits cheat files
 (.mch for melonDS, .cheats for mGBA).
 """
 import json, os, re, shutil, socket, struct, subprocess, sys, threading, time, webbrowser, zlib
@@ -12,14 +12,15 @@ from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("DS_PORT", "8765"))
 HOME = os.path.expanduser("~")
-GAMES = os.environ.get("DS_GAMES_DIR", os.path.join(HOME, "Games"))
+# games/ in the repo; the app passes the absolute path (it runs a bundled copy of this file)
+GAMES = os.environ.get("DS_GAMES_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "games"))
 MELON = "/Applications/melonDS.app/Contents/MacOS/melonDS"
 MGBA = "/Applications/mGBA.app/Contents/MacOS/mGBA"
 SYSTEM_BY_EXT = {".nds": "DS", ".gba": "GBA", ".gbc": "GBC", ".gb": "GB"}
 EMULATOR = {"DS": ("melonDS", MELON), "GBA": ("mGBA", MGBA), "GBC": ("mGBA", MGBA), "GB": ("mGBA", MGBA)}
 CONFIG = os.environ.get("DS_MELON_CONFIG", os.path.join(HOME, "Library/Preferences/melonDS/melonDS.toml"))
 HERE = os.path.dirname(os.path.abspath(__file__))
-SKIP_DIRS = {"Launcher", "cheat-tools", "backups"}
+SKIP_DIRS = {"backups"}
 IDLE_EXIT = 120      # quit if the page hasn't checked in for this many seconds
 BYE_GRACE = 5        # after the tab closes, wait this long (in case it was just a reload)
 last_seen = time.time()
@@ -461,7 +462,7 @@ def main():
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
     if "--no-browser" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
-    print("Emulaunch running at", url)
+    print("EmuLaun running at", url)
 
     def watchdog():
         while True:

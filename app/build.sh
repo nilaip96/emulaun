@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds "Emulaunch.app" into app/build/.
+# Builds "EmuLaun.app" into app/build/.
 # Needs the Xcode Command Line Tools (xcode-select --install).
 set -euo pipefail
 cd "$(dirname "$0")"
-APP="build/Emulaunch.app"
+APP="build/EmuLaun.app"
 
 rm -rf build && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/tmp
 
@@ -13,26 +13,28 @@ build/tmp/make_icon build/tmp/AppIcon.iconset >/dev/null
 iconutil -c icns build/tmp/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 
 echo "• compiling app"
-swiftc -O main.swift -o "$APP/Contents/MacOS/Emulaunch" -framework Cocoa -framework WebKit
+swiftc -O main.swift -o "$APP/Contents/MacOS/EmuLaun" -framework Cocoa -framework WebKit
 
 echo "• bundling launcher"
 cp -R ../launcher "$APP/Contents/Resources/launcher"
 find "$APP" -name "__pycache__" -prune -exec rm -rf {} +
 
-cat > "$APP/Contents/Info.plist" <<'EOF'
+GAMES_DIR="$(cd .. && pwd)/games"  # the app reads/launches games from the repo it was built from
+cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>Emulaunch</string>
-  <key>CFBundleDisplayName</key><string>Emulaunch</string>
-  <key>CFBundleIdentifier</key><string>local.emulaunch</string>
-  <key>CFBundleExecutable</key><string>Emulaunch</string>
+  <key>CFBundleName</key><string>EmuLaun</string>
+  <key>CFBundleDisplayName</key><string>EmuLaun</string>
+  <key>CFBundleIdentifier</key><string>local.emulaun</string>
+  <key>CFBundleExecutable</key><string>EmuLaun</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>12.0</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>EmuLaunGamesDir</key><string>$GAMES_DIR</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict></plist>
 EOF
