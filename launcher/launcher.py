@@ -187,19 +187,51 @@ def write_cheats(gid, on_set):
 
 # ---------- melonDS ----------
 
+# Find melonDS via macOS libproc/sysctl instead of spawning `ps` (~1 ms vs ~60 ms per check).
+import ctypes, ctypes.util
+_libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
+_libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+_melon_pid = None  # last known melonDS pid: checked first, so a running game costs one syscall
+
+
+def _exe_path(pid):
+    buf = ctypes.create_string_buffer(4096)
+    n = _libproc.proc_pidpath(pid, buf, 4096)
+    return buf.value.decode("utf-8", "replace") if n > 0 else ""
+
+
+def _proc_args(pid):
+    """argv of a process via sysctl(KERN_PROCARGS2)."""
+    mib = (ctypes.c_int * 3)(1, 49, pid)  # CTL_KERN, KERN_PROCARGS2
+    size = ctypes.c_size_t(1 << 16)
+    buf = ctypes.create_string_buffer(size.value)
+    if _libc.sysctl(mib, 3, buf, ctypes.byref(size), None, 0) != 0:
+        return []
+    raw = buf.raw[:size.value]
+    argc = struct.unpack_from("<i", raw)[0]
+    parts = [x for x in raw[4:].split(b"\0") if x][1:]  # skip exec path
+    return [x.decode("utf-8", "replace") for x in parts[:argc]]
+
+
 def running_game():
     """Return (pid, rom path or '') if melonDS is running, else None."""
+    global _melon_pid
     try:
-        out = subprocess.run(["ps", "-axo", "pid=,args="], capture_output=True, text=True).stdout
+        pid = None
+        if _melon_pid and _exe_path(_melon_pid).endswith("/MacOS/melonDS"):
+            pid = _melon_pid
+        else:
+            n = _libproc.proc_listallpids(None, 0)
+            pids = (ctypes.c_int * (n + 64))()
+            n = _libproc.proc_listallpids(pids, ctypes.sizeof(pids))
+            pid = next((q for q in pids[:n] if q > 0 and _exe_path(q).endswith("melonDS.app/Contents/MacOS/melonDS")), None)
+        _melon_pid = pid
+        if not pid:
+            return None
+        args = _proc_args(pid)
+        return pid, (args[1] if len(args) > 1 else "")
     except Exception:
         return None
-    for line in out.splitlines():
-        line = line.strip()
-        if "melonDS.app/Contents/MacOS/melonDS" in line:
-            pid, args = line.split(" ", 1)
-            rom = args.split("MacOS/melonDS", 1)[1].strip()
-            return int(pid), rom
-    return None
 
 
 def global_cheats():
