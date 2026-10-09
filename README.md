@@ -4,12 +4,17 @@
 
 <p align="center">A small, offline game library for <a href="https://melonds.kuribo64.net/">melonDS</a> on macOS: your Nintendo DS games in one grid, one-click play, and a checkbox list of cheats for every game.</p>
 
+<p align="center"><img src="docs/screenshot-grid.png" alt="DS Launcher grid view" width="900"></p>
+<p align="center"><img src="docs/screenshot-list.png" alt="DS Launcher list view with game details" width="900"></p>
+<p align="center"><sub>Screenshots use a made-up demo library (<code>docs/make_demo.py</code>), not real games.</sub></p>
+
 ---
 
 ## Features
 
 - **Native Mac app**: its own window and Dock icon, about 1 MB. When you quit it, nothing keeps running in the background.
-- **Library grid** with each game's real DS icon (read from the game file). Sort by **Recent**, **A–Z** or **Color**, and search.
+- **Grid or list view.** The list view shows your games on the left and the selected game's details on the right (<kbd>↑</kbd> <kbd>↓</kbd> to browse, <kbd>Return</kbd> to play).
+- **Library** with each game's real DS icon (read from the game file). Sort by **Recent**, **A–Z** or **Color**, and search.
 - **Per-game colors** taken from each icon and used for the card glow, the pop-up and the Play button.
 - **Game pop-up** with:
   - **Play**, which starts melonDS with the game
