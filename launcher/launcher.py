@@ -283,6 +283,12 @@ def _proc_args(pid):
 
 
 def running_game():
+    if os.environ.get("DS_DEMO"):  # README screenshots: ignore real emulators
+        return None
+    return _running_game()
+
+
+def _running_game():
     """Return (pid, rom path or '') if melonDS or mGBA is running, else None."""
     global _melon_pid
     try:

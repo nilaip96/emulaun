@@ -165,6 +165,18 @@ for i, (title, hue, shape, folder, ago) in enumerate(GAMES):
             open(p, "wb").write(b"\0" * 16)
             t = now - ago * 60 - (0 if ext == ".sav" else 300)
             os.utime(p, (t, t))
+# a few Game Boy titles (no box art, so they show the initials tile + system badge)
+for title, folder, ext, ago in [("Comet Crusaders", "GBA", ".gba", 15), ("Tiny Tank Tactics", "GBA", ".gba", None),
+                                ("Pocket Pinball", "GBC", ".gbc", None), ("Brick Breaker Pocket", "GB", ".gb", None)]:
+    d = os.path.join(OUT, folder)
+    os.makedirs(d, exist_ok=True)
+    base = os.path.join(d, title)
+    open(base + ext, "wb").write(bytes(0x8000))
+    if ago is not None:
+        open(base + ".sav", "wb").write(b"\0" * 16)
+        t = now - ago * 60
+        os.utime(base + ".sav", (t, t))
+
 with open(os.path.join(OUT, "melonDS-demo.toml"), "w") as f:  # so the demo shows cheats switched on
     f.write("[Instance0]\nEnableCheats = true\n")
 print(f"demo library with {len(GAMES)} games in {OUT}")

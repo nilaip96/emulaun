@@ -338,6 +338,7 @@ const sectionLabel = label => label ? `<div class="section ${label === "Recently
 const isPlaying = g => state.running && state.running.id === g.id;
 
 function renderGrid() {
+  document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.v === viewMode));
   const groups = sortedGroups();
   ordered = groups.flatMap(([, l]) => l);
   if (splitView()) return renderList(groups);
@@ -573,7 +574,8 @@ addEventListener("resize", () => {
   if (keep) openGame(keep);
 });
 // check in every 4s while visible, every 30s while hidden/minimized (keeps the server alive, saves work)
-(function tick() { refresh(); setTimeout(tick, document.hidden ? 30000 : 4000); })();
+// "#...&static" (used for README screenshots) loads once and stops polling so headless Chrome can finish
+(function tick() { refresh(); if (!new URLSearchParams(location.hash.slice(1)).has("static")) setTimeout(tick, document.hidden ? 30000 : 4000); })();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 // tell the launcher the tab closed so it can shut down
 window.addEventListener("pagehide", () => navigator.sendBeacon("/api/bye", "{}"));
