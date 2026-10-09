@@ -68,6 +68,34 @@ main{padding:24px 28px 70px;max-width:1900px;margin:0 auto}
 .badge{position:absolute;top:10px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:6px;padding:2px 7px;z-index:2}
 .badge.play{background:var(--green);color:#00140c;box-shadow:0 0 12px rgba(52,211,153,.6)}
 .badge.ch{right:auto;left:10px;background:rgba(167,139,250,.16);color:var(--violet);border:1px solid rgba(167,139,250,.35)}
+/* list view: list on the left, details on the right */
+body.listmode main{padding-bottom:20px}
+.split{display:grid;grid-template-columns:minmax(260px,380px) minmax(0,1fr);gap:18px;height:calc(100vh - 118px);min-height:420px}
+.list{overflow:auto;padding-right:6px}
+.list .section{margin:6px 4px 8px}
+.list .section:not(:first-child){margin-top:18px}
+.li{--c:var(--violet);display:flex;align-items:center;gap:12px;padding:9px 12px 9px 10px;border-radius:12px;cursor:pointer;
+  border:1px solid transparent;position:relative;outline:none;transition:background .12s,border-color .12s}
+.li:hover{background:var(--panel2)}
+.li:focus-visible{border-color:var(--line)}
+.li.sel{background:color-mix(in srgb,var(--c) 13%,var(--panel));border-color:color-mix(in srgb,var(--c) 55%,transparent);
+  box-shadow:0 6px 22px color-mix(in srgb,var(--c) 18%,transparent)}
+.li.sel::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:3px;border-radius:3px;background:var(--c)}
+.li .ic{width:48px;height:48px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 30%,#111),#0b0b0f 75%);border:1px solid color-mix(in srgb,var(--c) 30%,var(--line))}
+.li img{width:38px;height:38px;image-rendering:pixelated}
+.li .txt{flex:1;min-width:0}
+.li .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .m{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .playing{color:var(--green);font-weight:600}
+.li .badge.ch{position:static;flex:none}
+.detail{--c:var(--violet);display:flex;flex-direction:column;overflow:hidden;min-height:0;background:var(--panel);border-radius:20px;
+  border:1px solid color-mix(in srgb,var(--c) 35%,var(--line));box-shadow:0 0 50px color-mix(in srgb,var(--c) 12%,transparent)}
+.detail .close{display:none}
+.pick{margin:auto;text-align:center;padding:40px;max-width:360px}
+.pick-ic{width:84px;height:84px;margin:0 auto 18px;border-radius:22px;display:grid;place-items:center;font-size:30px;color:#fff;
+  background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 10px 40px rgba(34,211,238,.25)}
+.pick-t{font-size:20px;font-weight:700;margin-bottom:6px}
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;padding:24px;z-index:10;opacity:0;pointer-events:none;transition:opacity .18s}
@@ -99,11 +127,11 @@ button.primary:hover{filter:brightness(1.1);background:var(--c)}
 .saves{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
 .save{display:grid;grid-template-columns:1.1fr 1.2fr auto;gap:10px;padding:9px 14px;font-size:14px;border-top:1px solid var(--line);align-items:center}
 .save:first-child{border-top:none}
-.save span:first-child{display:flex;align-items:center;gap:8px}
-.save span:first-child::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--yellow)}
-.save.st span:first-child::before{background:var(--cyan)}
-.save span:nth-child(2){color:var(--muted)}
-.save span:last-child{white-space:nowrap;text-align:right}
+.save > span:first-child{display:flex;align-items:center;gap:8px}
+.save > span:first-child::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--yellow)}
+.save.st > span:first-child::before{background:var(--cyan)}
+.save > span:nth-child(2){color:var(--muted)}
+.save > span:last-child{white-space:nowrap;text-align:right}
 details{border-top:1px solid var(--line)}
 details:first-of-type{border-top:none}
 summary{cursor:pointer;padding:10px 2px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;list-style:none}
@@ -137,6 +165,7 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 <header>
   <h1>DS <span>Launcher</span></h1>
   <input type="search" id="q" placeholder="Search games…">
+  <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
   <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
   <div class="spacer"></div>
   <div class="status" id="status"><span class="dot"></span><span>melonDS closed</span></div>
@@ -204,7 +233,7 @@ function hueKey(c) {
 let colorResort;
 function paintColors(root) {
   root.querySelectorAll("img[data-id]").forEach(img => {
-    const id = img.dataset.id, host = img.closest(".card, .modal");
+    const id = img.dataset.id, host = img.closest(".card, .modal, .li, .detail");
     host.style.setProperty("--c", colorFor(id));
     const go = () => {
       if (colors[id]) return;
@@ -224,6 +253,12 @@ async function refresh() {
     return;
   }
   renderHeader();
+  if (!refresh._deep && location.hash.length > 1) {  // deep link: #view=list&game=DS/Name.nds
+    refresh._deep = true;
+    const h = new URLSearchParams(location.hash.slice(1)), id = h.get("game");
+    if (["grid", "list"].includes(h.get("view")) && h.get("view") !== viewMode) document.querySelector(`#view button[data-v="${h.get("view")}"]`).click();
+    if (id && state.games.some(g => g.id === id)) setTimeout(() => openGame(id), 0);
+  }
   const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on]), state.running]);
   if (gsig !== renderGrid._sig) { renderGrid._sig = gsig; renderGrid(); }
   if (current) {
@@ -241,26 +276,36 @@ function renderHeader() {
   if (qb) qb.onclick = async () => { if (confirm("Close melonDS? Save in-game first or you'll lose unsaved progress.")) { await api("/api/quit", {}); refresh(); } };
 }
 
-function renderGrid() {
+// ---- views: "grid" (cards + pop-up) or "list" (list + side-by-side details) ----
+let viewMode = (() => { try { return localStorage.getItem("view") || "grid"; } catch { return "grid"; } })();
+const splitView = () => viewMode === "list" && innerWidth >= 760;
+let ordered = [];  // games in on-screen order (for arrow-key browsing)
+
+function sortedGroups() {
   const q = $("#q").value.trim().toLowerCase();
   const games = state.games.filter(g => !q || (g.title + " " + g.name).toLowerCase().includes(q));
-  if (!games.length) { $("#main").innerHTML = `<div class="empty">No games found. Put .nds files in a folder inside ~/Games.</div>`; return; }
   const byName = (a, b) => a.title.localeCompare(b.title);
-  let groups;
-  if (sortMode === "color") {
-    groups = [["", [...games].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))]];
-  } else if (sortMode === "az") {
-    groups = [["", [...games].sort(byName)]];
-  } else {
-    const played = games.filter(g => g.last).sort((a, b) => b.last - a.last);
-    const rest = games.filter(g => !g.last).sort(byName);
-    groups = [["Recently played", played], [played.length ? "Not played yet" : "", rest]].filter(([, l]) => l.length);
-  }
+  if (sortMode === "color")
+    return [["", [...games].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))]];
+  if (sortMode === "az") return [["", [...games].sort(byName)]];
+  const played = games.filter(g => g.last).sort((a, b) => b.last - a.last);
+  const rest = games.filter(g => !g.last).sort(byName);
+  return [["Recently played", played], [played.length ? "Not played yet" : "", rest]].filter(([, l]) => l.length);
+}
+const sectionLabel = label => label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label}</div>` : "";
+const isPlaying = g => state.running && state.running.id === g.id;
+
+function renderGrid() {
+  const groups = sortedGroups();
+  ordered = groups.flatMap(([, l]) => l);
+  if (splitView()) return renderList(groups);
+  document.body.classList.remove("listmode");
+  if (!ordered.length) { $("#main").innerHTML = `<div class="empty">No games found. Put .nds files in a folder inside ~/Games.</div>`; return; }
   $("#main").innerHTML = groups.map(([label, list]) => `
-    ${label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label}</div>` : ""}
+    ${sectionLabel(label)}
     <div class="grid">${list.map(g => `
       <div class="card" data-id="${esc(g.id)}" tabindex="0">
-        ${state.running && state.running.id === g.id ? `<span class="badge play">PLAYING</span>` : ""}
+        ${isPlaying(g) ? `<span class="badge play">PLAYING</span>` : ""}
         ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
         <div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div>
         <div class="txt"><div class="t">${esc(g.title)}</div>
@@ -274,19 +319,82 @@ function renderGrid() {
   });
 }
 
+function renderList(groups) {
+  document.body.classList.add("listmode");
+  if (!$("#split")) {
+    $("#main").innerHTML = `<div class="split" id="split"><nav class="list" id="listCol"></nav>
+      <section class="detail" id="detail"></section></div>`;
+    if (current) openGame(current.id); else showPlaceholder();
+  }
+  const sel = current && current.id;
+  $("#listCol").innerHTML = !ordered.length ? `<div class="empty">No games found.</div>` : groups.map(([label, list]) => `
+    ${sectionLabel(label)}
+    ${list.map(g => `
+      <div class="li${g.id === sel ? " sel" : ""}" data-id="${esc(g.id)}" tabindex="0">
+        <div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div>
+        <div class="txt"><div class="t">${esc(g.title)}</div>
+          <div class="m">${isPlaying(g) ? `<span class="playing">● Playing</span>` : g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+        ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
+      </div>`).join("")}`).join("");
+  paintColors($("#listCol"));
+  document.querySelectorAll(".li").forEach(r => {
+    r.onclick = () => openGame(r.dataset.id);
+    r.onkeydown = e => { if (e.key === "Enter") openGame(r.dataset.id); };
+  });
+}
+
+function showPlaceholder() {
+  const d = $("#detail");
+  if (!d) return;
+  d.style.removeProperty("--c");
+  d.innerHTML = `<div class="pick"><div class="pick-ic">▶</div><div class="pick-t">Select a game</div>
+    <div class="hint">Click a game on the left, or use <span class="kbd">↑</span> <span class="kbd">↓</span> to browse and <span class="kbd">Return</span> to play.</div></div>`;
+}
+
+function hostEl() { return splitView() ? $("#detail") : $("#dr"); }
+
 async function openGame(id) {
   current = state.games.find(g => g.id === id);
+  if (!current) return;
   current._sig = JSON.stringify([current, state.running]);
   cheatData = null;
-  $("#dr").innerHTML = `<div class="dh" id="dtop"></div><div class="db" id="dbody"></div>`;
+  $("#dr").innerHTML = ""; if ($("#detail")) $("#detail").innerHTML = "";  // only one copy of the details at a time
+  const host = hostEl();
+  host.innerHTML = `<div class="dh" id="dtop"></div><div class="db" id="dbody"></div>`;
+  host.style.setProperty("--c", colorFor(id));
   renderTop();
-  $("#dr").style.setProperty("--c", colorFor(id)); $("#ov").classList.add("open");
-  cheatData = await api("/api/cheats?id=" + encodeURIComponent(id)).catch(() => ({cats: [], codes: []}));
+  if (splitView()) {
+    document.querySelectorAll(".li").forEach(r => r.classList.toggle("sel", r.dataset.id === id));
+    const row = document.querySelector(`.li[data-id="${CSS.escape(id)}"]`);
+    if (row) row.scrollIntoView({block: "nearest"});
+  } else {
+    $("#ov").classList.add("open");
+  }
+  const forId = id;
+  const data = await api("/api/cheats?id=" + encodeURIComponent(id)).catch(() => ({cats: [], codes: []}));
+  if (!current || current.id !== forId) return;  // user moved on while loading
+  cheatData = data;
   renderCheats();
 }
-function closeDrawer() { $("#ov").classList.remove("open"); current = null; }
+function closeDrawer() {
+  $("#ov").classList.remove("open");
+  current = null;
+  if (splitView()) { document.querySelectorAll(".li.sel").forEach(r => r.classList.remove("sel")); showPlaceholder(); }
+}
 $("#ov").onclick = e => { if (e.target === $("#ov")) closeDrawer(); };
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") return closeDrawer();
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (!splitView() || typing || !ordered.length) return;
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const i = current ? ordered.findIndex(g => g.id === current.id) : -1;
+    const next = ordered[Math.max(0, Math.min(ordered.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (next && (!current || next.id !== current.id)) openGame(next.id);
+  } else if (e.key === "Enter" && current) {
+    play_(current.id);
+  }
+});
 
 function renderTop() {
   const g = current;
@@ -403,6 +511,24 @@ document.querySelectorAll("#sort button").forEach(b => b.onclick = () => {
   paintSort(); renderGrid();
 });
 paintSort();
+const paintView = () => document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.v === viewMode));
+document.querySelectorAll("#view button").forEach(b => b.onclick = () => {
+  if (viewMode === b.dataset.v) return;
+  const keep = current && current.id;
+  $("#ov").classList.remove("open"); $("#dr").innerHTML = "";
+  viewMode = b.dataset.v; try { localStorage.setItem("view", viewMode); } catch {}
+  paintView(); $("#main").innerHTML = ""; current = null; renderGrid();
+  if (keep && splitView()) openGame(keep);
+});
+paintView();
+let lastSplit = splitView();
+addEventListener("resize", () => {
+  if (splitView() === lastSplit) return;
+  lastSplit = splitView();
+  const keep = current && current.id;
+  closeDrawer(); $("#main").innerHTML = ""; renderGrid();
+  if (keep) openGame(keep);
+});
 // check in every 4s while visible, every 30s while hidden/minimized (keeps the server alive, saves work)
 (function tick() { refresh(); setTimeout(tick, document.hidden ? 30000 : 4000); })();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });

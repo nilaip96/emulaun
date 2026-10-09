@@ -9,11 +9,11 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
-PORT = 8765
+PORT = int(os.environ.get("DS_PORT", "8765"))
 HOME = os.path.expanduser("~")
-GAMES = os.path.join(HOME, "Games")
+GAMES = os.environ.get("DS_GAMES_DIR", os.path.join(HOME, "Games"))
 MELON = "/Applications/melonDS.app/Contents/MacOS/melonDS"
-CONFIG = os.path.join(HOME, "Library/Preferences/melonDS/melonDS.toml")
+CONFIG = os.environ.get("DS_MELON_CONFIG", os.path.join(HOME, "Library/Preferences/melonDS/melonDS.toml"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKIP_DIRS = {"Launcher", "cheat-tools", "backups"}
 IDLE_EXIT = 120      # quit if the page hasn't checked in for this many seconds
