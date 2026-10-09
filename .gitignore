@@ -1,6 +1,12 @@
 # Never commit games, saves or anything personal
 *.nds
+*.gba
+*.gbc
+*.gb
 *.sav
+*.ss[0-9]
+*.cheats
+*.cheats.bak
 *.dsv
 *.ml[0-9]
 *.mch
@@ -10,6 +16,7 @@
 *.7z
 *.rar
 cheats.xml
+libretro-database/
 *Cheat Guide.txt
 backups/
 

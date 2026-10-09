@@ -2,7 +2,7 @@
 
 <h1 align="center">DS Launcher</h1>
 
-<p align="center">A small, offline game library for <a href="https://melonds.kuribo64.net/">melonDS</a> on macOS: your Nintendo DS games in one grid, one-click play, and a checkbox list of cheats for every game.</p>
+<p align="center">A small, offline game library for macOS: your <b>Nintendo DS, Game Boy Advance, Game Boy Color and Game Boy</b> games in one place, one-click play in <a href="https://melonds.kuribo64.net/">melonDS</a> or <a href="https://mgba.io/">mGBA</a>, and a checkbox list of cheats for every game.</p>
 
 <p align="center"><img src="docs/screenshot-grid.png" alt="DS Launcher grid view" width="900"></p>
 <p align="center"><img src="docs/screenshot-list.png" alt="DS Launcher list view with game details" width="900"></p>
@@ -15,14 +15,16 @@
 - **Native Mac app**: its own window and Dock icon, about 1 MB. When you quit it, nothing keeps running in the background.
 - **Grid or list view.** The list view shows your games on the left and the selected game's details on the right (<kbd>↑</kbd> <kbd>↓</kbd> to browse, <kbd>Return</kbd> to play).
 - **Library** with each game's real DS icon (read from the game file). Sort by **Recent**, **A–Z** or **Color**, and search.
+- **Four systems**: DS games open in melonDS, and GB, GBC and GBA games open in mGBA. Each game has a system badge, and you can filter by system.
 - **Per-game colors** taken from each icon and used for the card glow, the pop-up and the Play button.
 - **Game pop-up** with:
   - **Play**, which starts melonDS with the game
   - your in-game save and save states with their times (F1–F8 loads a state)
   - every cheat as a checkbox, with a Favorites folder at the top, search, and "pick one" folders
-- **Cheat importer** (`tools/add_games.py`). It takes games from `~/Downloads` (`.nds`, `.zip` or `.7z`), files them into `~/Games`, matches each one to the right cheat set by game ID and header checksum, and writes:
-  - a melonDS cheat file (`.mch`): an automatic Favorites list plus every code, all off by default
-  - a plain-text cheat guide
+- **Cheat importer** (`tools/add_games.py`). It takes games from `~/Downloads` (`.nds`, `.gba`, `.gbc`, `.gb`, or a `.zip`/`.7z` containing one), files them into `~/Games/<system>`, and installs cheats:
+  - **DS:** matched by game ID and header checksum against DeadSkullzJr's cheat database, written as a melonDS `.mch` file
+  - **GB/GBC/GBA:** identified by CRC32 against No-Intro's checksum list, with cheats from libretro written as an mGBA `.cheats` file, plus box art
+  - every game also gets an automatic Favorites list (all codes off by default) and a plain-text cheat guide
 - **Fully offline** once installed.
 
 > **No games are included.** Use backups of games you own. This repo contains only the launcher code.
@@ -40,8 +42,8 @@ cd ds-launcher
 The installer:
 
 1. Installs Apple's Command Line Tools if they're missing. A system dialog appears; finish it and re-run the script.
-2. Downloads **melonDS** from its official GitHub releases, if it isn't already in `/Applications`.
-3. Creates `~/Games/Pokemon`, `~/Games/DS` and `~/Games/cheat-tools`, and downloads the cheat database once (about 100 MB).
+2. Downloads **melonDS** and **mGBA** from their official GitHub releases, if they aren't already in `/Applications`. It also sets mGBA's keys to match the suggested melonDS keys.
+3. Creates `~/Games/DS`, `GBA`, `GBC`, `GB` and `cheat-tools`, then downloads the cheat data once: the DS database (about 100 MB) and libretro's Game Boy cheats and checksums (about 60 MB).
 4. Builds **DS Launcher.app** from source and puts it in `/Applications`.
 5. With `--dock`, adds it to your Dock.
 
@@ -57,14 +59,14 @@ python3 tools/add_games.py --dry-run  # just show what it would do
 ```
 
 - Games already in your library are skipped.
-- Pokémon games go to `~/Games/Pokemon`, everything else to `~/Games/DS`.
+- Each game goes into its system's folder: `~/Games/DS`, `GBA`, `GBC` or `GB`.
 - Your Downloads folder is never modified.
 - New games appear in DS Launcher on their own.
 
 ## Using cheats
 
 1. Open a game's pop-up and tick the cheats you want. They apply the next time you start that game.
-2. Flip the **Cheats** switch in the pop-up to ON. melonDS has one cheat switch shared by every game.
+2. For DS games, flip the **Cheats** switch in the pop-up to ON. melonDS has one cheat switch shared by every DS game. mGBA just runs whatever is ticked. If a GB/GBA game lists a **Master Code**, tick it too.
 3. "Always on" cheats just work. Others need the button combo shown, like `L+R`; press the buttons together.
 
 Tips:
@@ -95,17 +97,23 @@ python3 launcher/launcher.py   # opens http://127.0.0.1:8765, stops when you clo
 | `tools/add_games.py` | Game importer and cheat installer. |
 | `install.sh` | One-shot setup. |
 
-Your files live in `~/Games/<folder>/` and the repo never stores them:
-- `Game.nds`: the game
+Your files live in `~/Games/<system>/` and the repo never stores them:
+- `Game.nds` / `.gba` / `.gbc` / `.gb`: the game
 - `Game.sav`: in-game save
-- `Game.ml1`–`ml8`: save states
-- `Game.mch`: cheat file
+- `Game.ml1`–`ml8` (melonDS) or `Game.ss1`–`ss9` (mGBA): save states
+- `Game.mch` (melonDS) or `Game.cheats` (mGBA): cheat file
+- `Game.png`: box art (GB/GBC/GBA)
 - `Game - Cheat Guide.txt`: cheat guide
 
 ## Credits
 
 - [melonDS](https://github.com/melonDS-emu/melonDS), the emulator
-- [DeadSkullzJr's NDS(i) Cheat Databases](https://github.com/szTheory/NDS-Cheat-Databases) (mirror), the cheat codes. Downloaded at install time; not included in this repo.
+- [mGBA](https://github.com/mgba-emu/mgba), the Game Boy / GBA emulator
+- [DeadSkullzJr's NDS(i) Cheat Databases](https://github.com/szTheory/NDS-Cheat-Databases) (mirror), the DS cheat codes
+- [libretro-database](https://github.com/libretro/libretro-database), the GB/GBC/GBA cheats and No-Intro checksums
+- [libretro-thumbnails](https://github.com/libretro-thumbnails), the box art
+
+Cheat data and box art are downloaded at install or import time and aren't included in this repo.
 
 ## License
 
