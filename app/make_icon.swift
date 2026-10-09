@@ -1,4 +1,4 @@
-// Draws the DS Launcher app icon and writes an .iconset folder.
+// Draws the Emulaunch app icon and writes an .iconset folder.
 // usage: swift make_icon.swift <out.iconset>
 import AppKit
 

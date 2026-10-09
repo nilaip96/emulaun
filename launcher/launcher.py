@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DS Launcher - a small offline game library for melonDS (DS) and mGBA (GB/GBC/GBA).
+"""Emulaunch - a small offline game library for melonDS (DS) and mGBA (GB/GBC/GBA).
 
 Run:  python3 launcher.py      (opens http://127.0.0.1:8765 in your browser)
 Everything is local: it reads ~/Games, launches the emulator, and edits cheat files
@@ -377,7 +377,7 @@ class H(BaseHTTPRequestHandler):
                 running = None
                 if r:
                     rel = os.path.relpath(r[1], GAMES) if r[1].startswith(GAMES) else ""
-                    running = {"id": rel}
+                    running = {"id": rel, "emulator": "mGBA" if _exe_path(r[0]).endswith("/mGBA") else "melonDS"}
                 games = all_games()
                 return self.send(200, {"games": games, "running": running, "cheats_global": global_cheats()})
             if u.path == "/api/icon":
@@ -455,7 +455,7 @@ def main():
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), H)
     if "--no-browser" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
-    print("DS Launcher running at", url)
+    print("Emulaunch running at", url)
 
     def watchdog():
         while True:

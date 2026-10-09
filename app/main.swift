@@ -1,4 +1,4 @@
-// DS Launcher - native window around the local launcher page.
+// Emulaunch - native window around the local launcher page.
 // Starts launcher.py when the app opens and stops it when the app quits.
 import Cocoa
 import WebKit
@@ -44,14 +44,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDe
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 780),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
-        window.title = "DS Launcher"
+        window.title = "Emulaunch"
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 0.02, green: 0.02, blue: 0.027, alpha: 1)
         window.minSize = NSSize(width: 420, height: 500)
         window.contentView = web
         window.center()
-        window.setFrameAutosaveName("DSLauncherWindow")
+        window.setFrameAutosaveName("EmulaunchWindow")
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -113,9 +113,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDe
         let main = NSMenu()
         let appItem = NSMenuItem(); main.addItem(appItem)
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Hide DS Launcher", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Hide Emulaunch", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Quit DS Launcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Quit Emulaunch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
 
         let editItem = NSMenuItem(); main.addItem(editItem)

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds "DS Launcher.app" into app/build/.
+# Builds "Emulaunch.app" into app/build/.
 # Needs the Xcode Command Line Tools (xcode-select --install).
 set -euo pipefail
 cd "$(dirname "$0")"
-APP="build/DS Launcher.app"
+APP="build/Emulaunch.app"
 
 rm -rf build && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" build/tmp
 
@@ -13,7 +13,7 @@ build/tmp/make_icon build/tmp/AppIcon.iconset >/dev/null
 iconutil -c icns build/tmp/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 
 echo "• compiling app"
-swiftc -O main.swift -o "$APP/Contents/MacOS/DS Launcher" -framework Cocoa -framework WebKit
+swiftc -O main.swift -o "$APP/Contents/MacOS/Emulaunch" -framework Cocoa -framework WebKit
 
 echo "• bundling launcher"
 cp -R ../launcher "$APP/Contents/Resources/launcher"
@@ -23,10 +23,10 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>CFBundleName</key><string>DS Launcher</string>
-  <key>CFBundleDisplayName</key><string>DS Launcher</string>
-  <key>CFBundleIdentifier</key><string>local.dslauncher</string>
-  <key>CFBundleExecutable</key><string>DS Launcher</string>
+  <key>CFBundleName</key><string>Emulaunch</string>
+  <key>CFBundleDisplayName</key><string>Emulaunch</string>
+  <key>CFBundleIdentifier</key><string>local.emulaunch</string>
+  <key>CFBundleExecutable</key><string>Emulaunch</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>

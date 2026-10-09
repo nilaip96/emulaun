@@ -258,17 +258,17 @@ def write_guide(path, title, rom_rel, cats, favs, exact, system="DS"):
     g = [f"{title.upper()} - CHEAT GUIDE", "=" * (len(title) + 14), "",
          "Everything here works fully offline. No internet needed.", "",
          "HOW TO USE"] + ([
-         "  1. Open DS Launcher (Dock) and click this game, or in melonDS use",
+         "  1. Open Emulaunch (Dock) and click this game, or in melonDS use",
          f"     File > Open ROM... > ~/Games/{rom_rel}",
-         "  2. Make sure the 'Cheats' switch in the game's DS Launcher panel is ON",
+         "  2. Make sure the 'Cheats' switch in the game's Emulaunch panel is ON",
          "     (or System > Enable cheats in melonDS).",
-         "  3. Tick cheats in DS Launcher (applies next time you start the game), or",
+         "  3. Tick cheats in Emulaunch (applies next time you start the game), or",
          "     in melonDS: System > Setup cheat codes (applies right away).",
          "  4. 'Always on' cheats just work. Others need the button combo shown -",
          "     press all the buttons at the same time.", ""] if system == "DS" else [
-         "  1. Open DS Launcher (Dock) and click this game - it opens in mGBA. Or in mGBA:",
+         "  1. Open Emulaunch (Dock) and click this game - it opens in mGBA. Or in mGBA:",
          f"     File > Load ROM... > ~/Games/{rom_rel}",
-         "  2. Tick cheats in DS Launcher (applies next time you start the game), or",
+         "  2. Tick cheats in Emulaunch (applies next time you start the game), or",
          "     in mGBA: Tools > Cheats... (applies right away).",
          "  3. If a 'Master Code' is listed, tick it too - many codes need it.", ""]) + [
          "YOUR CONTROLS (DS button = keyboard key)",
@@ -300,7 +300,7 @@ def write_guide(path, title, rom_rel, cats, favs, exact, system="DS"):
         if c["note"]:
             g.append(f"   note: {clean(c['note'], 300)}")
         if len(c["cheats"]) > 60:
-            g.append("   (long list - browse it in DS Launcher)")
+            g.append("   (long list - browse it in Emulaunch)")
             continue
         for ch in c["cheats"]:
             g.append(f"   - {ch['name']}" + (f" - {clean(ch['note'], 200)}" if ch["note"] else ""))

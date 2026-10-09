@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DS Launcher</title>
+<title>Emulaunch</title>
 <style>
 :root{
   --bg:#050507; --panel:#0e0e12; --panel2:#15151b; --ink:#f2f3f7; --muted:#8a8d9b; --line:#22232c;
@@ -175,13 +175,13 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 </head>
 <body>
 <header>
-  <h1>DS <span>Launcher</span></h1>
+  <h1>Emu<span>launch</span></h1>
   <input type="search" id="q" placeholder="Search games…">
   <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
   <div class="seg" id="sys"></div>
   <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
   <div class="spacer"></div>
-  <div class="status" id="status"><span class="dot"></span><span>melonDS closed</span></div>
+  <div class="status" id="status" style="display:none"></div>
 </header>
 <main id="main"></main>
 
@@ -285,7 +285,7 @@ function paintColors(root) {
 async function refresh() {
   try { state = await api("/api/state"); }
   catch {
-    $("#main").innerHTML = `<div class="empty">The launcher has stopped (it shuts down when idle so nothing runs in the background).<br>Click <b>DS Launcher</b> in your Dock to open it again.</div>`;
+    $("#main").innerHTML = `<div class="empty">The launcher has stopped (it shuts down when idle so nothing runs in the background).<br>Click <b>Emulaunch</b> in your Dock to open it again.</div>`;
     return;
   }
   renderHeader();
@@ -306,11 +306,16 @@ async function refresh() {
 }
 
 function renderHeader() {
+  // only shows something while an emulator is open
   const r = state.running, g = r && state.games.find(x => x.id === r.id);
-  $("#status").innerHTML = `<span class="dot ${r ? "on" : ""}"></span><span>${r ? "Playing: " + esc(g ? g.title : "a game") : "melonDS closed"}</span>` +
-    (r ? ` <button class="small danger" id="quitBtn">Close game</button>` : "");
+  const html = !r ? "" : `<span class="dot on"></span><span>${g ? `Playing <b>${esc(g.title)}</b> in ${esc(r.emulator)}` : `${esc(r.emulator)} is open`}</span>
+    <button class="small danger" id="quitBtn">Close</button>`;
+  if ($("#status").dataset.html === html) return;
+  $("#status").dataset.html = html;
+  $("#status").innerHTML = html;
+  $("#status").style.display = r ? "" : "none";
   const qb = $("#quitBtn");
-  if (qb) qb.onclick = async () => { if (confirm("Close melonDS? Save in-game first or you'll lose unsaved progress.")) { await api("/api/quit", {}); refresh(); } };
+  if (qb) qb.onclick = async () => { if (confirm(`Close ${r.emulator}? Save in-game first or you'll lose unsaved progress.`)) { await api("/api/quit", {}); refresh(); } };
 }
 
 // ---- views: "grid" (cards + pop-up) or "list" (list + side-by-side details) ----

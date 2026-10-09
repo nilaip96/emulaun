@@ -1,7 +1,7 @@
 #!/bin/bash
-# DS Launcher installer (macOS).
+# Emulaunch installer (macOS).
 #   ./install.sh          install / update everything
-#   ./install.sh --dock   ...and add DS Launcher to the Dock
+#   ./install.sh --dock   ...and add Emulaunch to the Dock
 # Safe to re-run. Never touches your games or saves.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -12,7 +12,7 @@ DB_URL="https://raw.githubusercontent.com/szTheory/NDS-Cheat-Databases/HEAD/Chea
 say()  { printf "\033[1;36m==>\033[0m %s\n" "$*"; }
 fail() { printf "\033[1;31merror:\033[0m %s\n" "$*" >&2; exit 1; }
 
-[ "$(uname)" = "Darwin" ] || fail "DS Launcher only runs on macOS."
+[ "$(uname)" = "Darwin" ] || fail "Emulaunch only runs on macOS."
 
 # 1. tools
 if ! xcrun --find swiftc >/dev/null 2>&1; then
@@ -76,16 +76,33 @@ else
 fi
 
 # 4. build + install the app
-say "Building DS Launcher.app..."
+say "Building Emulaunch.app..."
 ./app/build.sh
-osascript -e 'tell application "DS Launcher" to quit' >/dev/null 2>&1 || true
-rm -rf "/Applications/DS Launcher.app"
-cp -R "app/build/DS Launcher.app" /Applications/
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/DS Launcher.app" || true
+for old in "Emulaunch" "DS Launcher"; do osascript -e "tell application \"$old\" to quit" >/dev/null 2>&1 || true; done
+rm -rf "/Applications/DS Launcher.app"   # this app's previous name
+if defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/DS%20Launcher.app"; then
+  say "Pointing the Dock icon at Emulaunch"
+  python3 - <<'PY'
+import plistlib, subprocess
+raw = subprocess.run(["defaults", "export", "com.apple.dock", "-"], capture_output=True).stdout
+d = plistlib.loads(raw)
+for t in d.get("persistent-apps", []):
+    fd = t.get("tile-data", {}).get("file-data", {})
+    if "DS%20Launcher.app" in fd.get("_CFURLString", ""):
+        fd["_CFURLString"] = "file:///Applications/Emulaunch.app/"
+        t["tile-data"]["file-label"] = "Emulaunch"
+        t["tile-data"].pop("book", None)
+subprocess.run(["defaults", "import", "com.apple.dock", "-"], input=plistlib.dumps(d))
+PY
+  killall Dock
+fi
+rm -rf "/Applications/Emulaunch.app"
+cp -R "app/build/Emulaunch.app" /Applications/
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/Emulaunch.app" || true
 
 # 5. optional Dock icon
 if [ "${1:-}" = "--dock" ] && ! defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/DS%20Launcher.app"; then
-  say "Adding DS Launcher to the Dock"
+  say "Adding Emulaunch to the Dock"
   defaults write com.apple.dock persistent-apps -array-add \
     '<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>file:///Applications/DS%20Launcher.app/</string><key>_CFURLStringType</key><integer>15</integer></dict></dict></dict>'
   killall Dock
@@ -93,11 +110,11 @@ fi
 
 cat <<EOF
 
-$(printf "\033[1;32m✓ DS Launcher is installed.\033[0m")
+$(printf "\033[1;32m✓ Emulaunch is installed.\033[0m")
 
 Next:
   1. Put your own game backups (.nds .gba .gbc .gb, or .zip/.7z containing them) in ~/Downloads, then run:
        python3 "$REPO/tools/add_games.py"
      It copies them into ~/Games and installs cheats + a cheat guide for each.
-  2. Open "DS Launcher" from Applications (or Spotlight).
+  2. Open "Emulaunch" from Applications (or Spotlight).
 EOF

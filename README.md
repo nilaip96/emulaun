@@ -1,11 +1,11 @@
-<p align="center"><img src="docs/icon.png" width="128" alt="DS Launcher icon"></p>
+<p align="center"><img src="docs/icon.png" width="128" alt="Emulaunch icon"></p>
 
-<h1 align="center">DS Launcher</h1>
+<h1 align="center">Emulaunch</h1>
 
 <p align="center">A small, offline game library for macOS: your <b>Nintendo DS, Game Boy Advance, Game Boy Color and Game Boy</b> games in one place, one-click play in <a href="https://melonds.kuribo64.net/">melonDS</a> or <a href="https://mgba.io/">mGBA</a>, and a checkbox list of cheats for every game.</p>
 
-<p align="center"><img src="docs/screenshot-grid.png" alt="DS Launcher grid view" width="900"></p>
-<p align="center"><img src="docs/screenshot-list.png" alt="DS Launcher list view with game details" width="900"></p>
+<p align="center"><img src="docs/screenshot-grid.png" alt="Emulaunch grid view" width="900"></p>
+<p align="center"><img src="docs/screenshot-list.png" alt="Emulaunch list view with game details" width="900"></p>
 <p align="center"><sub>Screenshots use a made-up demo library (<code>docs/make_demo.py</code>), not real games.</sub></p>
 
 ---
@@ -34,8 +34,8 @@
 Requires macOS 12+ (Intel or Apple Silicon).
 
 ```bash
-git clone https://github.com/nilaip96/ds-launcher.git
-cd ds-launcher
+git clone https://github.com/nilaip96/emulaunch.git
+cd emulaunch
 ./install.sh --dock
 ```
 
@@ -44,7 +44,7 @@ The installer:
 1. Installs Apple's Command Line Tools if they're missing. A system dialog appears; finish it and re-run the script.
 2. Downloads **melonDS** and **mGBA** from their official GitHub releases, if they aren't already in `/Applications`. It also sets mGBA's keys to match the suggested melonDS keys.
 3. Creates `~/Games/DS`, `GBA`, `GBC`, `GB` and `cheat-tools`, then downloads the cheat data once: the DS database (about 100 MB) and libretro's Game Boy cheats and checksums (about 60 MB).
-4. Builds **DS Launcher.app** from source and puts it in `/Applications`.
+4. Builds **Emulaunch.app** from source and puts it in `/Applications`.
 5. With `--dock`, adds it to your Dock.
 
 The script is safe to re-run, and it never touches your games or saves.
@@ -61,7 +61,7 @@ python3 tools/add_games.py --dry-run  # just show what it would do
 - Games already in your library are skipped.
 - Each game goes into its system's folder: `~/Games/DS`, `GBA`, `GBC` or `GB`.
 - Your Downloads folder is never modified.
-- New games appear in DS Launcher on their own.
+- New games appear in Emulaunch on their own.
 
 ## Using cheats
 
@@ -93,7 +93,7 @@ python3 launcher/launcher.py   # opens http://127.0.0.1:8765, stops when you clo
 | `launcher/index.html` | The whole UI, with no external libraries. |
 | `app/main.swift` | Native window (WKWebView). Starts the server on launch and stops it on quit. |
 | `app/make_icon.swift` | Draws the app icon in code. |
-| `app/build.sh` | Builds `DS Launcher.app`. |
+| `app/build.sh` | Builds `Emulaunch.app`. |
 | `tools/add_games.py` | Game importer and cheat installer. |
 | `install.sh` | One-shot setup. |
 
