@@ -110,7 +110,7 @@ def game_info(gid, files=None):
     mtime = lambda name: os.path.getmtime(os.path.join(folder, name))
     st_ext = "ml" if system == "DS" else "ss"  # melonDS: Game.ml1-8, mGBA: Game.ss1-9
     states = [{"slot": n, "time": fmt_time(mtime(f"{base}.{st_ext}{n}")), "ts": mtime(f"{base}.{st_ext}{n}")}
-              for n in range(1, 10) if f"{base}.{st_ext}{n}" in files]
+              for n in range(0 if st_ext == "ss" else 1, 10) if f"{base}.{st_ext}{n}" in files]  # mGBA autosave = .ss0
     sav = mtime(base + ".sav") if base + ".sav" in files else 0
     cfile = base + (".mch" if system == "DS" else ".cheats")
     cheats = parse_cheat_file(os.path.join(folder, cfile)) if cfile in files else None

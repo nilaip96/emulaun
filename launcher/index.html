@@ -458,15 +458,18 @@ function renderTop() {
   let play = $("#playBox");
   if (!play) { play = document.createElement("div"); play.id = "playBox"; play.className = "box"; body.prepend(play); }
   const saves = [`<div class="save"><span>In-game save</span><span>${g.save ? esc(g.save) : "none yet"}</span><span class="hint" style="margin:0">loads automatically</span></div>`]
-    .concat([1, 2, 3, 4, 5, 6, 7, 8].map(n => {
+    .concat([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => {
       const s = g.states.find(x => x.slot === n);
-      return s ? `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>` : "";
+      if (!s) return "";
+      if (n === 0) return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span class="hint" style="margin:0">resumes automatically</span></div>`;
+      return `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>`;
     })).join("");
   play.innerHTML = `<div class="row"><button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>
     ${g.has_guide ? `<button class="small" id="guideBtn">Cheat guide</button>` : ""}
     <button class="small" id="revealBtn">Show in Finder</button></div>
     <h3 style="margin-top:16px">Your saves</h3>
     <div class="saves">${saves}</div>
+    <div class="hint">${g.system === "DS" ? "melonDS has no autosave: save in-game or press <span class='kbd'>Shift+F1</span> before closing." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
     <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
       <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
     <div id="guideWrap"></div>`;
