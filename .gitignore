@@ -1,0 +1,24 @@
+# Never commit games, saves or anything personal
+*.nds
+*.sav
+*.dsv
+*.ml[0-9]
+*.mch
+*.mch.bak
+*.mch.tmp
+*.zip
+*.7z
+*.rar
+cheats.xml
+*Cheat Guide.txt
+backups/
+
+# build output
+app/build/
+app/AppIcon.iconset/
+app/AppIcon.icns
+
+# junk
+__pycache__/
+*.pyc
+.DS_Store
