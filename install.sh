@@ -78,7 +78,8 @@ fi
 # 4. build + install the app
 say "Building Emulaunch.app..."
 ./app/build.sh
-for old in "Emulaunch" "DS Launcher"; do osascript -e "tell application \"$old\" to quit" >/dev/null 2>&1 || true; done
+# quit a running copy (by process, not by name: naming an app that no longer exists makes macOS ask "Where is ...?")
+pkill -f "/Applications/(Emulaunch|DS Launcher).app/Contents/MacOS/" 2>/dev/null || true
 rm -rf "/Applications/DS Launcher.app"   # this app's previous name
 if defaults read com.apple.dock persistent-apps 2>/dev/null | grep -q "Applications/DS%20Launcher.app"; then
   say "Pointing the Dock icon at Emulaunch"
