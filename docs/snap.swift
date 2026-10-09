@@ -14,7 +14,13 @@ class Snapper: NSObject, WKNavigationDelegate {
     let web: WKWebView
     let window: NSWindow
     init(_ size: NSSize) {
-        web = WKWebView(frame: NSRect(origin: .zero, size: size), configuration: WKWebViewConfiguration())
+        let cfg = WKWebViewConfiguration()
+        // offscreen windows count as hidden, which pauses CSS transitions mid-way; turn them off
+        let css = "*,*::before,*::after{transition:none!important;animation:none!important}"
+        cfg.userContentController.addUserScript(WKUserScript(
+            source: "document.documentElement.appendChild(Object.assign(document.createElement('style'),{textContent:'\(css)'}))",
+            injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        web = WKWebView(frame: NSRect(origin: .zero, size: size), configuration: cfg)
         window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
         super.init()
         window.contentView = web
