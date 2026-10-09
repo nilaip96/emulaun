@@ -50,11 +50,26 @@ if [ ! -d "/Applications/mGBA.app" ]; then
 else
   say "mGBA already installed"
 fi
-MGBA_CFG="$HOME/Library/Application Support/mGBA/config.ini"
-if [ ! -f "$MGBA_CFG" ]; then  # same keys as the suggested melonDS setup; auto-load cheat files
-  mkdir -p "$(dirname "$MGBA_CFG")"
-  keys=$'keyA=68\nkeyB=65\nkeyL=81\nkeyR=69\nkeyStart=16777220\nkeySelect=16777248\nkeyUp=16777235\nkeyDown=16777237\nkeyLeft=16777234\nkeyRight=16777236'
-  printf '[ports.qt]\ncheatAutoload=1\ncheatAutosave=1\n\n[gba.input.QT_K]\n%s\n\n[gb.input.QT_K]\n%s\n' "$keys" "$keys" > "$MGBA_CFG"
+# mGBA settings live in ~/.config/mgba on macOS. Merge in: same keys as the suggested melonDS
+# setup, auto-load cheat files, and autosave + resume (Game.ss0 every ~10 s and on close).
+if ! pgrep -f "mGBA.app/Contents/MacOS/mGBA" >/dev/null; then
+  mkdir -p "$HOME/.config/mgba"
+  python3 - "$HOME/.config/mgba/config.ini" <<'PY'
+import configparser, os, sys
+p = sys.argv[1]
+c = configparser.RawConfigParser(); c.optionxform = str
+if os.path.exists(p): c.read(p)
+keys = {"keyA": 68, "keyB": 65, "keyL": 81, "keyR": 69, "keyStart": 16777220, "keySelect": 16777248,
+        "keyUp": 16777235, "keyDown": 16777237, "keyLeft": 16777234, "keyRight": 16777236}
+for sec in ("gba.input.QT_K", "gb.input.QT_K"):
+    if not c.has_section(sec): c.add_section(sec)
+    for k, v in keys.items(): c.set(sec, k, str(v))
+if not c.has_section("ports.qt"): c.add_section("ports.qt")
+for k in ("autosave", "autoload", "cheatAutoload", "cheatAutosave"): c.set("ports.qt", k, "1")
+with open(p, "w") as f: c.write(f, space_around_delimiters=False)
+PY
+else
+  say "mGBA is open - skipping its settings (re-run ./install.sh after closing it)"
 fi
 
 # 3. folders + offline cheat databases
@@ -82,6 +97,7 @@ say "Building EmuLaun.app..."
 # quit a running copy (by process, not by name: naming an app that no longer exists makes macOS ask "Where is ...?")
 OLD_NAMES=("DS Launcher" "Emulaunch")   # this app's previous names
 pkill -f "/Applications/(EmuLaun|DS Launcher|Emulaunch).app/Contents/MacOS/" 2>/dev/null || true
+pkill -f "\.app/Contents/Resources/launcher/launcher\.py" 2>/dev/null || true   # its server, so the new app doesn't reuse old code
 for old in "${OLD_NAMES[@]}"; do rm -rf "/Applications/$old.app"; done
 rm -rf "/Applications/EmuLaun.app"
 cp -R "app/build/EmuLaun.app" /Applications/

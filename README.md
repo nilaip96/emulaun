@@ -42,7 +42,7 @@ cd emulaun
 The installer:
 
 1. Installs Apple's Command Line Tools if they're missing. A system dialog appears; finish it and re-run the script.
-2. Downloads **melonDS** and **mGBA** from their official GitHub releases, if they aren't already in `/Applications`. It also sets mGBA's keys to match the suggested melonDS keys.
+2. Downloads **melonDS** and **mGBA** from their official GitHub releases, if they aren't already in `/Applications`. It also configures mGBA (`~/.config/mgba`): keys matching the suggested melonDS keys, auto-loading cheats, and **autosave**, which saves a resume point every ~10 seconds and on close, then picks up there next time.
 3. Creates `games/DS`, `GBA`, `GBC` and `GB` plus `data/` inside the repo, then downloads the cheat data once: the DS database (about 100 MB) and libretro's Game Boy cheats and checksums (about 60 MB).
 4. Builds **EmuLaun.app** from source and puts it in `/Applications`.
 5. With `--dock`, adds it to your Dock.
@@ -72,6 +72,7 @@ python3 tools/add_games.py --dry-run  # just show what it would do
 Tips:
 
 - Make a save state (`Shift+F1`) before trying a new cheat. `F1` jumps back.
+- GB/GBC/GBA games autosave and resume automatically (shown as **Autosave** in the pop-up). melonDS has no autosave, so for DS games save in-game or press `Shift+F1` before closing.
 - Cheats that patch game code keep running until the game restarts.
 - Each game's `… - Cheat Guide.txt` (also under **Cheat guide** in the pop-up) lists every code with notes.
 
