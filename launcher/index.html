@@ -198,8 +198,11 @@ let sysFilter = (() => { try { return localStorage.getItem("sys") || "all"; } ca
 function renderSysFilter() {
   const present = ["DS", "GBA", "GBC", "GB"].filter(s => state.games.some(g => g.system === s));
   if (sysFilter !== "all" && !present.includes(sysFilter)) sysFilter = "all";
-  const count = s => s === "all" ? state.games.length : state.games.filter(g => g.system === s).length;
-  $("#q").placeholder = `Search ${count(sysFilter)} ${sysFilter === "all" ? "" : sysFilter + " "}game${count(sysFilter) === 1 ? "" : "s"}…`;
+  const all = s => s === "all" ? state.games.length : state.games.filter(g => g.system === s).length;
+  const q = $("#q").value.trim().toLowerCase();  // while searching, buttons count matches per system
+  const hits = q ? state.games.filter(g => (g.title + " " + g.name).toLowerCase().includes(q)) : state.games;
+  const count = s => s === "all" ? hits.length : hits.filter(g => g.system === s).length;
+  $("#q").placeholder = `Search ${all(sysFilter)} ${sysFilter === "all" ? "" : sysFilter + " "}game${all(sysFilter) === 1 ? "" : "s"}…`;
   const html = present.length > 1 ? ["all", ...present].map(s => `<button data-f="${s}" class="${s === sysFilter ? "on" : ""}">${s === "all" ? "All" : s} <span class="cnt">${count(s)}</span></button>`).join("") : "";
   if ($("#sys").innerHTML !== html) {
     $("#sys").innerHTML = html; $("#sys").style.display = html ? "" : "none";
@@ -552,7 +555,7 @@ async function saveCheats() {
   refresh();
 }
 
-$("#q").oninput = renderGrid;
+$("#q").oninput = () => { renderSysFilter(); renderGrid(); };
 const paintSort = () => document.querySelectorAll("#sort button").forEach(b => b.classList.toggle("on", b.dataset.s === sortMode));
 document.querySelectorAll("#sort button").forEach(b => b.onclick = () => {
   sortMode = b.dataset.s; try { localStorage.setItem("sort", sortMode); } catch {}
