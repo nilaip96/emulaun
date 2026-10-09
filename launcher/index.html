@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DS Launcher</title>
+<style>
+:root{
+  --bg:#050507; --panel:#0e0e12; --panel2:#15151b; --ink:#f2f3f7; --muted:#8a8d9b; --line:#22232c;
+  --red:#ff4d6d; --cyan:#22d3ee; --yellow:#facc15; --violet:#a78bfa; --green:#34d399; --orange:#fb923c; --pink:#f472b6;
+  --c:#ff4d6d;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:radial-gradient(1200px 500px at 10% -10%,rgba(167,139,250,.10),transparent 60%),
+             radial-gradient(900px 400px at 100% 0%,rgba(34,211,238,.08),transparent 60%),var(--bg);min-height:100vh}
+header{position:sticky;top:0;z-index:5;display:flex;gap:12px;align-items:center;padding:16px 28px;flex-wrap:wrap;
+  background:rgba(5,5,7,.82);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+h1{font-size:21px;margin:0 10px 0 0;letter-spacing:-.02em;font-weight:800}
+h1 span{background:linear-gradient(90deg,var(--red),var(--orange),var(--yellow),var(--green),var(--cyan),var(--violet));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+input[type=search]{flex:1;min-width:180px;max-width:340px;padding:9px 14px;border-radius:12px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);font:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+input[type=search]:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.18)}
+.spacer{flex:1}
+.seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{border:none;background:none;padding:5px 13px;border-radius:9px;font-size:13px;color:var(--muted)}
+.seg button.on{background:var(--cyan);color:#001318;font-weight:650}
+.status{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#3a3c47}
+.dot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);padding:8px 14px;cursor:pointer;transition:.15s}
+button:hover{border-color:#3a3c47;background:#1b1b22}
+button.small{padding:5px 11px;font-size:13px}
+button.danger{border-color:rgba(255,77,109,.45);color:var(--red)}
+button.danger:hover{background:rgba(255,77,109,.12)}
+.switch{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none;color:var(--muted)}
+.switch input{appearance:none;width:38px;height:22px;border-radius:22px;background:#2a2b35;position:relative;cursor:pointer;margin:0;transition:.15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.switch input:checked{background:var(--green);box-shadow:0 0 12px rgba(52,211,153,.5)}
+.switch input:checked::after{left:19px}
+.switch:has(input:checked){color:var(--green)}
+main{padding:24px 28px 70px;max-width:1900px;margin:0 auto}
+.section{margin:4px 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;display:flex;align-items:center;gap:8px}
+.section::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor;box-shadow:0 0 10px currentColor}
+.section.recent{color:var(--yellow)} .section.new{color:var(--cyan)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:14px;margin-bottom:30px}
+@media (min-width:560px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:780px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (min-width:1000px){.grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (min-width:1220px){.grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media (min-width:1460px){.grid{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@media (min-width:1700px){.grid{grid-template-columns:repeat(8,minmax(0,1fr))}}
+.card{--c:var(--violet);background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer;
+  display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:22px 12px 16px;position:relative;overflow:hidden;transition:transform .12s,border-color .15s,box-shadow .2s;outline:none}
+.card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c);opacity:.85}
+.card::after{content:"";position:absolute;inset:0;background:radial-gradient(220px 140px at 50% 0%,color-mix(in srgb,var(--c) 16%,transparent),transparent 70%);pointer-events:none}
+.card:hover,.card:focus-visible{transform:translateY(-3px);border-color:color-mix(in srgb,var(--c) 70%,transparent);
+  box-shadow:0 10px 34px color-mix(in srgb,var(--c) 28%,transparent)}
+.card .ic{width:88px;height:88px;border-radius:16px;position:relative;z-index:1;flex:none;display:grid;place-items:center;
+  background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c) 30%,#111),#0b0b0f 75%);border:1px solid color-mix(in srgb,var(--c) 30%,var(--line))}
+.card img{width:64px;height:64px;image-rendering:pixelated}
+.card .txt{width:100%;display:flex;flex-direction:column;flex:1}
+.card .t{font-weight:650;line-height:1.25;position:relative;z-index:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.5em;font-size:14px}
+.card .m{font-size:11.5px;color:var(--muted);margin-top:6px;position:relative;z-index:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{position:absolute;top:10px;right:10px;font-size:10.5px;font-weight:700;letter-spacing:.03em;border-radius:6px;padding:2px 7px;z-index:2}
+.badge.play{background:var(--green);color:#00140c;box-shadow:0 0 12px rgba(52,211,153,.6)}
+.badge.ch{right:auto;left:10px;background:rgba(167,139,250,.16);color:var(--violet);border:1px solid rgba(167,139,250,.35)}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:24px;z-index:10;opacity:0;pointer-events:none;transition:opacity .18s}
+.overlay.open{opacity:1;pointer-events:auto}
+.modal{--c:var(--violet);width:min(760px,100%);max-height:min(88vh,900px);display:flex;flex-direction:column;overflow:hidden;
+  background:var(--panel);border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));border-radius:20px;
+  box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.02),0 0 60px color-mix(in srgb,var(--c) 18%,transparent);
+  transform:scale(.96) translateY(8px);transition:transform .2s ease}
+.overlay.open .modal{transform:none}
+.dh{display:flex;gap:16px;align-items:center;padding:22px 22px 18px;position:relative;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--c) 32%,#08080a) 0%,#0c0c10 70%);border-bottom:1px solid var(--line)}
+.dh .ic{width:84px;height:84px;border-radius:16px;display:grid;place-items:center;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  box-shadow:0 0 30px color-mix(in srgb,var(--c) 30%,transparent)}
+.dh img{width:68px;height:68px;image-rendering:pixelated}
+.dh .t{font-size:21px;font-weight:750;line-height:1.2;letter-spacing:-.01em}
+.dh .m{font-size:13px;color:#b9bccb;margin-top:4px}
+.close{position:absolute;top:12px;right:12px;width:32px;height:32px;padding:0;border-radius:10px;font-size:18px;line-height:1;
+  background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);color:#cfd2dc}
+.db{overflow:auto;padding:18px 22px 26px;flex:1}
+.box{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.box h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+button.primary{background:var(--c);border-color:transparent;color:#07070a;font-weight:750;letter-spacing:.01em;
+  box-shadow:0 6px 24px color-mix(in srgb,var(--c) 40%,transparent)}
+button.primary:hover{filter:brightness(1.1);background:var(--c)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:10px}
+.warn{color:var(--orange)}
+.kbd{font:11.5px ui-monospace,Menlo,monospace;background:rgba(34,211,238,.1);color:var(--cyan);border:1px solid rgba(34,211,238,.28);border-radius:6px;padding:1px 6px}
+.saves{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel)}
+.save{display:grid;grid-template-columns:1.1fr 1.2fr auto;gap:10px;padding:9px 14px;font-size:14px;border-top:1px solid var(--line);align-items:center}
+.save:first-child{border-top:none}
+.save span:first-child{display:flex;align-items:center;gap:8px}
+.save span:first-child::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--yellow)}
+.save.st span:first-child::before{background:var(--cyan)}
+.save span:nth-child(2){color:var(--muted)}
+.save span:last-child{white-space:nowrap;text-align:right}
+details{border-top:1px solid var(--line)}
+details:first-of-type{border-top:none}
+summary{cursor:pointer;padding:10px 2px;font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--muted);transition:.15s}
+details[open] summary::before{transform:rotate(90deg);color:var(--c)}
+details.fav summary{color:var(--yellow)}
+summary .n{font-weight:500;color:var(--muted);font-size:12px;margin-left:auto}
+summary .one{font-size:10.5px;font-weight:700;color:var(--orange);border:1px solid rgba(251,146,60,.4);border-radius:6px;padding:1px 6px;margin-left:0}
+summary .on{color:var(--green);font-weight:700}
+.code{display:flex;gap:11px;padding:8px 8px 8px 18px;align-items:flex-start;border-radius:10px;cursor:pointer}
+.code:hover{background:rgba(255,255,255,.03)}
+.code:has(input:checked){background:rgba(52,211,153,.07)}
+.code input{margin-top:3px;accent-color:var(--green);width:16px;height:16px;flex:none}
+.code .cn{font-size:14px}
+.code:has(input:checked) .cn{color:var(--green)}
+.code .cd{font-size:12px;color:var(--muted)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(8px);background:#15151b;color:var(--ink);border:1px solid var(--line);
+  border-left:3px solid var(--cyan);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;transition:.2s;z-index:20;pointer-events:none;max-width:90%;
+  box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.empty{color:var(--muted);padding:40px 0;text-align:center}
+pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;background:var(--panel);border:1px solid var(--line);color:#cfd2dc;
+  padding:14px;border-radius:12px;max-height:420px;overflow:auto;margin:12px 0 0}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#262732;border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+@media (max-width:600px){header,main{padding-left:16px;padding-right:16px}.overlay{padding:10px}.save{grid-template-columns:1fr auto}.save span:nth-child(2){display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>DS <span>Launcher</span></h1>
+  <input type="search" id="q" placeholder="Search games…">
+  <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
+  <div class="spacer"></div>
+  <div class="status" id="status"><span class="dot"></span><span>melonDS closed</span></div>
+</header>
+<main id="main"></main>
+
+<div class="overlay" id="ov"><div class="modal" id="dr" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let state = {games: [], running: null, cheats_global: false};
+let current = null, cheatData = null;
+let sortMode = (() => { try { return localStorage.getItem("sort") || "recent"; } catch { return "recent"; } })();
+
+const api = async (path, body) => {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json", "X-Launcher": "1"}, body: JSON.stringify(body)} : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(j.error || r.statusText), {status: r.status});
+  return j;
+};
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const icon = id => "/api/icon?id=" + encodeURIComponent(id);
+
+// ---- per-game highlight color, pulled from the game's own icon ----
+const PALETTE = ["#ff4d6d", "#22d3ee", "#facc15", "#a78bfa", "#34d399", "#fb923c", "#f472b6"];
+const colors = (() => { try { return JSON.parse(localStorage.getItem("colors") || "{}"); } catch { return {}; } })();
+const hashColor = id => PALETTE[[...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % PALETTE.length];
+const colorFor = id => colors[id] || hashColor(id);
+function rgb2hsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s, l];
+}
+function extractColor(img) {
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 32;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0, 32, 32);
+    const px = x.getImageData(0, 0, 32, 32).data, bins = new Array(12).fill(0), hs = new Array(12).fill(0);
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 128) continue;
+      const [h, s, l] = rgb2hsl(px[i], px[i + 1], px[i + 2]);
+      if (s < 0.3 || l < 0.18 || l > 0.88) continue;
+      const w = s * (1 - Math.abs(l - 0.55)), b = Math.floor(h / 30) % 12;
+      bins[b] += w; hs[b] += h * w;
+    }
+    const best = bins.indexOf(Math.max(...bins));
+    if (!bins[best]) return null;
+    return `hsl(${Math.round(hs[best] / bins[best])} 90% 62%)`;
+  } catch { return null; }
+}
+// sort key for the Color view: hue around the color wheel, red first
+function hueKey(c) {
+  let m = /^hsl\((\d+)/.exec(c);
+  if (m) return (+m[1] + 345) % 360;
+  m = /^#(..)(..)(..)$/.exec(c);
+  if (!m) return 999;
+  const [h, s] = rgb2hsl(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
+  return s < 0.15 ? 999 : (h + 345) % 360;
+}
+let colorResort;
+function paintColors(root) {
+  root.querySelectorAll("img[data-id]").forEach(img => {
+    const id = img.dataset.id, host = img.closest(".card, .modal");
+    host.style.setProperty("--c", colorFor(id));
+    const go = () => {
+      if (colors[id]) return;
+      const c = extractColor(img); if (!c) return;
+      colors[id] = c; try { localStorage.setItem("colors", JSON.stringify(colors)); } catch {}
+      if (sortMode === "color") { clearTimeout(colorResort); colorResort = setTimeout(renderGrid, 400); }
+      host.style.setProperty("--c", c);
+    };
+    img.complete && img.naturalWidth ? go() : img.addEventListener("load", go, {once: true});
+  });
+}
+
+async function refresh() {
+  try { state = await api("/api/state"); }
+  catch {
+    $("#main").innerHTML = `<div class="empty">The launcher has stopped (it shuts down when idle so nothing runs in the background).<br>Click <b>DS Launcher</b> in your Dock to open it again.</div>`;
+    return;
+  }
+  renderHeader();
+  const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on]), state.running]);
+  if (gsig !== renderGrid._sig) { renderGrid._sig = gsig; renderGrid(); }
+  if (current) {
+    const g = state.games.find(g => g.id === current.id);
+    const sig = JSON.stringify([g, state.running]);
+    if (g && sig !== current._sig) { current = g; current._sig = sig; renderTop(); }
+  }
+}
+
+function renderHeader() {
+  const r = state.running, g = r && state.games.find(x => x.id === r.id);
+  $("#status").innerHTML = `<span class="dot ${r ? "on" : ""}"></span><span>${r ? "Playing: " + esc(g ? g.title : "a game") : "melonDS closed"}</span>` +
+    (r ? ` <button class="small danger" id="quitBtn">Close game</button>` : "");
+  const qb = $("#quitBtn");
+  if (qb) qb.onclick = async () => { if (confirm("Close melonDS? Save in-game first or you'll lose unsaved progress.")) { await api("/api/quit", {}); refresh(); } };
+}
+
+function renderGrid() {
+  const q = $("#q").value.trim().toLowerCase();
+  const games = state.games.filter(g => !q || (g.title + " " + g.name).toLowerCase().includes(q));
+  if (!games.length) { $("#main").innerHTML = `<div class="empty">No games found. Put .nds files in a folder inside ~/Games.</div>`; return; }
+  const byName = (a, b) => a.title.localeCompare(b.title);
+  let groups;
+  if (sortMode === "color") {
+    groups = [["", [...games].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))]];
+  } else if (sortMode === "az") {
+    groups = [["", [...games].sort(byName)]];
+  } else {
+    const played = games.filter(g => g.last).sort((a, b) => b.last - a.last);
+    const rest = games.filter(g => !g.last).sort(byName);
+    groups = [["Recently played", played], [played.length ? "Not played yet" : "", rest]].filter(([, l]) => l.length);
+  }
+  $("#main").innerHTML = groups.map(([label, list]) => `
+    ${label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label}</div>` : ""}
+    <div class="grid">${list.map(g => `
+      <div class="card" data-id="${esc(g.id)}" tabindex="0">
+        ${state.running && state.running.id === g.id ? `<span class="badge play">PLAYING</span>` : ""}
+        ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
+        <div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div>
+        <div class="txt"><div class="t">${esc(g.title)}</div>
+        <div class="m">${g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+      </div>`).join("")}
+    </div>`).join("");
+  paintColors($("#main"));
+  document.querySelectorAll(".card").forEach(c => {
+    c.onclick = () => openGame(c.dataset.id);
+    c.onkeydown = e => { if (e.key === "Enter") openGame(c.dataset.id); };
+  });
+}
+
+async function openGame(id) {
+  current = state.games.find(g => g.id === id);
+  current._sig = JSON.stringify([current, state.running]);
+  cheatData = null;
+  $("#dr").innerHTML = `<div class="dh" id="dtop"></div><div class="db" id="dbody"></div>`;
+  renderTop();
+  $("#dr").style.setProperty("--c", colorFor(id)); $("#ov").classList.add("open");
+  cheatData = await api("/api/cheats?id=" + encodeURIComponent(id)).catch(() => ({cats: [], codes: []}));
+  renderCheats();
+}
+function closeDrawer() { $("#ov").classList.remove("open"); current = null; }
+$("#ov").onclick = e => { if (e.target === $("#ov")) closeDrawer(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+
+function renderTop() {
+  const g = current;
+  const running = state.running && state.running.id === g.id;
+  $("#dtop").innerHTML = `<div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div><div><div class="t">${esc(g.title)}</div>
+    <div class="m">${g.save ? "Last saved " + esc(g.save) : "No save yet"}</div></div>
+    <button class="close" aria-label="Close">×</button>`;
+  $("#dtop .close").onclick = closeDrawer;
+  paintColors($("#dtop"));
+  let body = $("#dbody");
+  let play = $("#playBox");
+  if (!play) { play = document.createElement("div"); play.id = "playBox"; play.className = "box"; body.prepend(play); }
+  const saves = [`<div class="save"><span>In-game save</span><span>${g.save ? esc(g.save) : "none yet"}</span><span class="hint" style="margin:0">loads automatically</span></div>`]
+    .concat([1, 2, 3, 4, 5, 6, 7, 8].map(n => {
+      const s = g.states.find(x => x.slot === n);
+      return s ? `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>` : "";
+    })).join("");
+  play.innerHTML = `<div class="row"><button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>
+    ${g.has_guide ? `<button class="small" id="guideBtn">Cheat guide</button>` : ""}
+    <button class="small" id="revealBtn">Show in Finder</button></div>
+    <h3 style="margin-top:16px">Your saves</h3>
+    <div class="saves">${saves}</div>
+    <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
+      <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
+    <div id="guideWrap"></div>`;
+  $("#playBtn").onclick = () => play_(g.id);
+  $("#revealBtn").onclick = () => api("/api/reveal", {id: g.id});
+  if ($("#guideBtn")) $("#guideBtn").onclick = async () => {
+    const w = $("#guideWrap");
+    if (w.innerHTML) { w.innerHTML = ""; return; }
+    const t = await (await fetch("/api/guide?id=" + encodeURIComponent(g.id))).text();
+    w.innerHTML = `<pre class="guide">${esc(t)}</pre>`;
+  };
+}
+
+async function play_(id) {
+  try { await api("/api/play", {id}); }
+  catch (e) {
+    if (e.status !== 409) return toast(e.message);
+    if (!confirm("A game is already open. Close it and start this one?\n\nSave in-game first, or you'll lose unsaved progress.")) return;
+    try { await api("/api/play", {id, force: true}); } catch (e2) { return toast(e2.message); }
+  }
+  toast("Starting game…"); setTimeout(refresh, 1500);
+}
+
+function renderCheats() {
+  const body = $("#dbody");
+  let box = $("#cheatBox");
+  if (!box) { box = document.createElement("div"); box.id = "cheatBox"; box.className = "box"; body.appendChild(box); }
+  const d = cheatData;
+  if (!d.codes.length) { box.innerHTML = `<h3>Cheats</h3><div class="hint">No cheat file for this game.</div>`; return; }
+  const onCount = d.codes.filter(c => c.on).length;
+  box.innerHTML = `<div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <h3 style="margin:0">Cheats <span style="font-weight:400;color:var(--muted)">· ${onCount} ticked</span></h3>
+      <label class="switch" title="melonDS has one cheat switch for every game"><input type="checkbox" id="global" ${state.cheats_global ? "checked" : ""}> ${state.cheats_global ? "Cheats ON" : "Cheats OFF"}</label></div>
+    <div class="row"><input type="search" id="cq" placeholder="Search ${d.codes.length} cheats…" style="max-width:none">
+    <button class="small danger" id="allOff">Turn all off</button></div>
+    ${state.cheats_global ? "" : `<div class="hint warn">Cheats are switched OFF, so ticked cheats won't run. Flip the switch above to turn them on.</div>`}
+    <div class="hint">The switch is shared by all games (it's how melonDS works). Ticks save instantly and apply the next time you start the game.</div>
+    <div id="cats" style="margin-top:8px"></div>`;
+  $("#cq").oninput = drawCats;
+  $("#global").onchange = async e => {
+    const on = e.target.checked;
+    try { await api("/api/global_cheats", {on}); state.cheats_global = on; toast(on ? "Cheats switched ON" : "Cheats switched OFF (all games)"); }
+    catch (err) { toast(err.message); }
+    renderCheats();
+  };
+  $("#allOff").onclick = () => { d.codes.forEach(c => c.on = false); saveCheats(); };
+  drawCats();
+}
+
+function drawCats() {
+  const d = cheatData, q = ($("#cq").value || "").trim().toLowerCase();
+  const openNames = new Set([...document.querySelectorAll("#cats details[open]")].map(x => x.dataset.cat));
+  const html = d.cats.map((cat, ci) => {
+    let idx = cat.codes;
+    if (q) idx = idx.filter(i => (d.codes[i].name + " " + d.codes[i].desc).toLowerCase().includes(q));
+    if (!idx.length) return "";
+    const on = cat.codes.filter(i => d.codes[i].on).length;
+    const open = q || ci === 0 || openNames.has(String(ci));
+    const rows = (open ? idx : []).map(i => { const c = d.codes[i]; return `
+      <label class="code"><input type="checkbox" data-i="${i}" data-c="${ci}" ${c.on ? "checked" : ""}>
+      <div><div class="cn">${esc(c.name)}</div>${c.desc ? `<div class="cd">${esc(c.desc)}</div>` : ""}</div></label>`; }).join("");
+    return `<details data-cat="${ci}" class="${ci === 0 ? "fav" : ""}" ${open ? "open" : ""}><summary>${ci === 0 ? "★ " : ""}${esc(cat.name.replace(/\*+/g, "").trim())}${cat.one ? ` <span class="one">PICK ONE</span>` : ""}
+      <span class="n">${on ? `<span class="on">${on} on</span> · ` : ""}${cat.codes.length}</span></summary>${rows}</details>`;
+  }).join("");
+  $("#cats").innerHTML = html || `<div class="hint">No cheats match.</div>`;
+  document.querySelectorAll("#cats details").forEach(det => det.addEventListener("toggle", () => { if (det.open && !det.querySelector(".code")) drawCats(); }));
+  document.querySelectorAll("#cats input[type=checkbox]").forEach(cb => cb.onchange = () => {
+    const i = +cb.dataset.i, cat = d.cats[+cb.dataset.c];
+    if (cb.checked && cat.one) cat.codes.forEach(j => d.codes[j].on = false);
+    d.codes[i].on = cb.checked;
+    saveCheats();
+  });
+}
+
+async function saveCheats() {
+  try {
+    await api("/api/cheats", {id: current.id, on: cheatData.codes.filter(c => c.on).map(c => c.i)});
+    toast("Cheats saved");
+  } catch (e) {
+    toast(e.message);
+    cheatData = await api("/api/cheats?id=" + encodeURIComponent(current.id));
+  }
+  const keepQ = $("#cq") ? $("#cq").value : "";
+  renderCheats(); if (keepQ) { $("#cq").value = keepQ; drawCats(); }
+  refresh();
+}
+
+$("#q").oninput = renderGrid;
+const paintSort = () => document.querySelectorAll("#sort button").forEach(b => b.classList.toggle("on", b.dataset.s === sortMode));
+document.querySelectorAll("#sort button").forEach(b => b.onclick = () => {
+  sortMode = b.dataset.s; try { localStorage.setItem("sort", sortMode); } catch {}
+  paintSort(); renderGrid();
+});
+paintSort();
+// check in every 4s while visible, every 30s while hidden/minimized (keeps the server alive, saves work)
+(function tick() { refresh(); setTimeout(tick, document.hidden ? 30000 : 4000); })();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+// tell the launcher the tab closed so it can shut down
+window.addEventListener("pagehide", () => navigator.sendBeacon("/api/bye", "{}"));
+</script>
+</body>
+</html>
