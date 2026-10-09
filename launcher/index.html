@@ -96,6 +96,18 @@ body.listmode main{padding-bottom:20px}
 .pick-ic{width:84px;height:84px;margin:0 auto 18px;border-radius:22px;display:grid;place-items:center;font-size:30px;color:#fff;
   background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 10px 40px rgba(34,211,238,.25)}
 .pick-t{font-size:20px;font-weight:700;margin-bottom:6px}
+/* systems: badge, box art, fallback tiles */
+.sys{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:1px 5px;border-radius:5px;vertical-align:1px;
+  color:var(--s);border:1px solid color-mix(in srgb,var(--s) 45%,transparent);background:color-mix(in srgb,var(--s) 12%,transparent)}
+.dh .sys{font-size:11px;vertical-align:3px;margin-left:4px}
+img.art{image-rendering:auto;object-fit:cover}
+.ic{overflow:hidden}
+.ic img.art,.ic .fb{width:100%!important;height:100%!important;border-radius:0}
+.fb{width:100%;height:100%;display:grid;place-content:center;text-align:center;font-weight:800;font-size:22px;letter-spacing:.02em;color:#fff;line-height:1;
+  border-radius:inherit;background:linear-gradient(135deg,color-mix(in srgb,var(--c) 75%,#000),color-mix(in srgb,var(--c) 35%,#000))}
+.fb small{display:block;font-size:9px;font-weight:700;opacity:.75;margin-top:4px;letter-spacing:.1em}
+.li .fb{font-size:14px}.li .fb small{display:none}
+.dh .fb{font-size:26px}
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;padding:24px;z-index:10;opacity:0;pointer-events:none;transition:opacity .18s}
@@ -166,6 +178,7 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
   <h1>DS <span>Launcher</span></h1>
   <input type="search" id="q" placeholder="Search games…">
   <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
+  <div class="seg" id="sys"></div>
   <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
   <div class="spacer"></div>
   <div class="status" id="status"><span class="dot"></span><span>melonDS closed</span></div>
@@ -179,6 +192,19 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 const $ = s => document.querySelector(s);
 let state = {games: [], running: null, cheats_global: false};
 let current = null, cheatData = null;
+let sysFilter = (() => { try { return localStorage.getItem("sys") || "all"; } catch { return "all"; } })();
+function renderSysFilter() {
+  const present = ["DS", "GBA", "GBC", "GB"].filter(s => state.games.some(g => g.system === s));
+  if (sysFilter !== "all" && !present.includes(sysFilter)) sysFilter = "all";
+  const html = present.length > 1 ? ["all", ...present].map(s => `<button data-f="${s}" class="${s === sysFilter ? "on" : ""}">${s === "all" ? "All" : s}</button>`).join("") : "";
+  if ($("#sys").innerHTML !== html) {
+    $("#sys").innerHTML = html; $("#sys").style.display = html ? "" : "none";
+    $("#sys").querySelectorAll("button").forEach(b => b.onclick = () => {
+      sysFilter = b.dataset.f; try { localStorage.setItem("sys", sysFilter); } catch {}
+      renderSysFilter(); renderGrid();
+    });
+  }
+}
 let sortMode = (() => { try { return localStorage.getItem("sort") || "recent"; } catch { return "recent"; } })();
 
 const api = async (path, body) => {
@@ -190,6 +216,15 @@ const api = async (path, body) => {
 const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); };
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 const icon = id => "/api/icon?id=" + encodeURIComponent(id);
+const SYS_COLOR = {DS: "var(--red)", GBA: "var(--violet)", GBC: "var(--yellow)", GB: "var(--green)"};
+function iconHTML(g) {
+  if (!g.art) {  // no DS icon / box art: a tile with the game's initials
+    const ini = g.title.replace(/^(the|a)\s+/i, "").split(/[\s\-:&]+/).filter(Boolean).slice(0, 2).map(w => w[0]).join("").toUpperCase();
+    return `<div class="fb" data-id="${esc(g.id)}">${esc(ini)}<small>${g.system}</small></div>`;
+  }
+  return `<img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}" class="${g.system === "DS" ? "" : "art"}">`;
+}
+const sysBadge = g => `<span class="sys" style="--s:${SYS_COLOR[g.system] || "var(--muted)"}">${g.system}</span>`;
 
 // ---- per-game highlight color, pulled from the game's own icon ----
 const PALETTE = ["#ff4d6d", "#22d3ee", "#facc15", "#a78bfa", "#34d399", "#fb923c", "#f472b6"];
@@ -232,6 +267,7 @@ function hueKey(c) {
 }
 let colorResort;
 function paintColors(root) {
+  root.querySelectorAll(".fb[data-id]").forEach(fb => fb.closest(".card, .modal, .li, .detail").style.setProperty("--c", colorFor(fb.dataset.id)));
   root.querySelectorAll("img[data-id]").forEach(img => {
     const id = img.dataset.id, host = img.closest(".card, .modal, .li, .detail");
     host.style.setProperty("--c", colorFor(id));
@@ -253,6 +289,7 @@ async function refresh() {
     return;
   }
   renderHeader();
+  renderSysFilter();
   if (!refresh._deep && location.hash.length > 1) {  // deep link: #view=list&game=DS/Name.nds
     refresh._deep = true;
     const h = new URLSearchParams(location.hash.slice(1)), id = h.get("game");
@@ -283,7 +320,7 @@ let ordered = [];  // games in on-screen order (for arrow-key browsing)
 
 function sortedGroups() {
   const q = $("#q").value.trim().toLowerCase();
-  const games = state.games.filter(g => !q || (g.title + " " + g.name).toLowerCase().includes(q));
+  const games = state.games.filter(g => (sysFilter === "all" || g.system === sysFilter) && (!q || (g.title + " " + g.name).toLowerCase().includes(q)));
   const byName = (a, b) => a.title.localeCompare(b.title);
   if (sortMode === "color")
     return [["", [...games].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))]];
@@ -307,9 +344,9 @@ function renderGrid() {
       <div class="card" data-id="${esc(g.id)}" tabindex="0">
         ${isPlaying(g) ? `<span class="badge play">PLAYING</span>` : ""}
         ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
-        <div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div>
+        <div class="ic">${iconHTML(g)}</div>
         <div class="txt"><div class="t">${esc(g.title)}</div>
-        <div class="m">${g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+        <div class="m">${sysBadge(g)} ${g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
       </div>`).join("")}
     </div>`).join("");
   paintColors($("#main"));
@@ -331,9 +368,9 @@ function renderList(groups) {
     ${sectionLabel(label)}
     ${list.map(g => `
       <div class="li${g.id === sel ? " sel" : ""}" data-id="${esc(g.id)}" tabindex="0">
-        <div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div>
+        <div class="ic">${iconHTML(g)}</div>
         <div class="txt"><div class="t">${esc(g.title)}</div>
-          <div class="m">${isPlaying(g) ? `<span class="playing">● Playing</span>` : g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+          <div class="m">${sysBadge(g)} ${isPlaying(g) ? `<span class="playing">● Playing</span>` : g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
         ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
       </div>`).join("")}`).join("");
   paintColors($("#listCol"));
@@ -399,7 +436,7 @@ document.addEventListener("keydown", e => {
 function renderTop() {
   const g = current;
   const running = state.running && state.running.id === g.id;
-  $("#dtop").innerHTML = `<div class="ic"><img src="${icon(g.id)}" alt="" data-id="${esc(g.id)}"></div><div><div class="t">${esc(g.title)}</div>
+  $("#dtop").innerHTML = `<div class="ic">${iconHTML(g)}</div><div><div class="t">${esc(g.title)} ${sysBadge(g)}</div>
     <div class="m">${g.save ? "Last saved " + esc(g.save) : "No save yet"}</div></div>
     <button class="close" aria-label="Close">×</button>`;
   $("#dtop .close").onclick = closeDrawer;
@@ -449,14 +486,15 @@ function renderCheats() {
   const onCount = d.codes.filter(c => c.on).length;
   box.innerHTML = `<div class="row" style="justify-content:space-between;margin-bottom:10px">
       <h3 style="margin:0">Cheats <span style="font-weight:400;color:var(--muted)">· ${onCount} ticked</span></h3>
-      <label class="switch" title="melonDS has one cheat switch for every game"><input type="checkbox" id="global" ${state.cheats_global ? "checked" : ""}> ${state.cheats_global ? "Cheats ON" : "Cheats OFF"}</label></div>
+      ${current.system === "DS" ? `<label class="switch" title="melonDS has one cheat switch for every game"><input type="checkbox" id="global" ${state.cheats_global ? "checked" : ""}> ${state.cheats_global ? "Cheats ON" : "Cheats OFF"}</label>` : ""}</div>
     <div class="row"><input type="search" id="cq" placeholder="Search ${d.codes.length} cheats…" style="max-width:none">
     <button class="small danger" id="allOff">Turn all off</button></div>
-    ${state.cheats_global ? "" : `<div class="hint warn">Cheats are switched OFF, so ticked cheats won't run. Flip the switch above to turn them on.</div>`}
-    <div class="hint">The switch is shared by all games (it's how melonDS works). Ticks save instantly and apply the next time you start the game.</div>
+    ${current.system !== "DS" ? `<div class="hint">Plays in mGBA. Ticks save instantly and apply the next time you start the game. If there's a <b>Master Code</b>, tick it too.</div>` :
+      (state.cheats_global ? "" : `<div class="hint warn">Cheats are switched OFF, so ticked cheats won't run. Flip the switch above to turn them on.</div>`) +
+      `<div class="hint">The switch is shared by all DS games (it's how melonDS works). Ticks save instantly and apply the next time you start the game.</div>`}
     <div id="cats" style="margin-top:8px"></div>`;
   $("#cq").oninput = drawCats;
-  $("#global").onchange = async e => {
+  if ($("#global")) $("#global").onchange = async e => {
     const on = e.target.checked;
     try { await api("/api/global_cheats", {on}); state.cheats_global = on; toast(on ? "Cheats switched ON" : "Cheats switched OFF (all games)"); }
     catch (err) { toast(err.message); }

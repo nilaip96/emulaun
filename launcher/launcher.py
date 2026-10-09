@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""DS Launcher - a small offline game library for melonDS.
+"""DS Launcher - a small offline game library for melonDS (DS) and mGBA (GB/GBC/GBA).
 
 Run:  python3 launcher.py      (opens http://127.0.0.1:8765 in your browser)
-Everything is local: it reads ~/Games, launches melonDS, and edits .mch cheat files.
+Everything is local: it reads ~/Games, launches the emulator, and edits cheat files
+(.mch for melonDS, .cheats for mGBA).
 """
 import json, os, re, shutil, socket, struct, subprocess, sys, threading, time, webbrowser, zlib
 from datetime import datetime
@@ -13,6 +14,9 @@ PORT = int(os.environ.get("DS_PORT", "8765"))
 HOME = os.path.expanduser("~")
 GAMES = os.environ.get("DS_GAMES_DIR", os.path.join(HOME, "Games"))
 MELON = "/Applications/melonDS.app/Contents/MacOS/melonDS"
+MGBA = "/Applications/mGBA.app/Contents/MacOS/mGBA"
+SYSTEM_BY_EXT = {".nds": "DS", ".gba": "GBA", ".gbc": "GBC", ".gb": "GB"}
+EMULATOR = {"DS": ("melonDS", MELON), "GBA": ("mGBA", MGBA), "GBC": ("mGBA", MGBA), "GB": ("mGBA", MGBA)}
 CONFIG = os.environ.get("DS_MELON_CONFIG", os.path.join(HOME, "Library/Preferences/melonDS/melonDS.toml"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKIP_DIRS = {"Launcher", "cheat-tools", "backups"}
@@ -31,7 +35,7 @@ def scan_games():
         if folder in SKIP_DIRS or not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
-            if f.lower().endswith(".nds"):
+            if os.path.splitext(f)[1].lower() in SYSTEM_BY_EXT:
                 out.append(os.path.join(folder, f))
     return out
 
@@ -100,14 +104,18 @@ def game_info(gid, files=None):
     folder, base = os.path.dirname(path), os.path.splitext(os.path.basename(path))[0]
     if files is None:
         files = set(os.listdir(folder))
-    title, _ = read_banner(path)
+    system = SYSTEM_BY_EXT[os.path.splitext(path)[1].lower()]
+    title = read_banner(path)[0] if system == "DS" else None
     mtime = lambda name: os.path.getmtime(os.path.join(folder, name))
-    states = [{"slot": n, "time": fmt_time(mtime(f"{base}.ml{n}")), "ts": mtime(f"{base}.ml{n}")}
-              for n in range(1, 9) if f"{base}.ml{n}" in files]
+    st_ext = "ml" if system == "DS" else "ss"  # melonDS: Game.ml1-8, mGBA: Game.ss1-9
+    states = [{"slot": n, "time": fmt_time(mtime(f"{base}.{st_ext}{n}")), "ts": mtime(f"{base}.{st_ext}{n}")}
+              for n in range(1, 10) if f"{base}.{st_ext}{n}" in files]
     sav = mtime(base + ".sav") if base + ".sav" in files else 0
-    cheats = parse_mch_file(os.path.join(folder, base + ".mch")) if base + ".mch" in files else None
+    cfile = base + (".mch" if system == "DS" else ".cheats")
+    cheats = parse_cheat_file(os.path.join(folder, cfile)) if cfile in files else None
     return {
-        "id": gid, "name": base, "title": title or base, "folder": os.path.basename(folder),
+        "id": gid, "name": base, "title": title or base, "folder": os.path.basename(folder), "system": system,
+        "art": system == "DS" or base + ".png" in files,
         "save": fmt_time(sav) if sav else None,
         "last": max([sav] + [st["ts"] for st in states]),
         "states": states,
@@ -131,15 +139,20 @@ def all_games():
 
 # ---------- cheats (.mch, melonDS format) ----------
 
-def mch_path(gid):
-    return os.path.splitext(rom_path(gid))[0] + ".mch"
+def cheat_path(gid):
+    p = rom_path(gid)
+    return os.path.splitext(p)[0] + (".mch" if p.lower().endswith(".nds") else ".cheats")
 
 
 _mch_cache = {}  # path -> ((mtime, size), parsed); files are only re-read when they change
 
 
 def parse_mch(gid):
-    return parse_mch_file(mch_path(gid))
+    return parse_cheat_file(cheat_path(gid))
+
+
+def parse_cheat_file(p):
+    return parse_mch_file(p) if p.endswith(".mch") else parse_mgba_file(p)
 
 
 def parse_mch_file(p):
@@ -172,8 +185,63 @@ def parse_mch_file(p):
     return data
 
 
+# ---------- cheats (.cheats, mGBA format) ----------
+# "!disabled" before "# Name" turns a cheat off; code lines follow the name.
+# Names starting with "★" are this tool's favorites and get their own folder in the UI.
+
+def _mgba_entries(p):
+    pre, entries, pending, disabled = [], [], [], False
+    for line in open(p, encoding="utf-8", errors="replace").read().split("\n"):
+        t = line.strip()
+        if t.lower() == "!disabled":
+            disabled = True
+        elif t.startswith("!"):
+            pending.append(line)
+        elif t.startswith("#"):
+            entries.append({"name": t[1:].strip(), "on": not disabled, "pre": pending, "body": []})
+            pending, disabled = [], False
+        elif entries:
+            if t:
+                entries[-1]["body"].append(line)
+        elif t:
+            pre.append(line)
+    return pre, entries
+
+
+def parse_mgba_file(p):
+    try:
+        st = os.stat(p)
+    except OSError:
+        return None
+    key = (st.st_mtime_ns, st.st_size)
+    hit = _mch_cache.get(p)
+    if hit and hit[0] == key:
+        return hit[1]
+    _, entries = _mgba_entries(p)
+    codes = [{"i": i, "on": e["on"], "name": e["name"].lstrip("★ ").strip(), "desc": ""} for i, e in enumerate(entries)]
+    favs = [i for i, e in enumerate(entries) if e["name"].startswith("★")]
+    cats = ([{"name": "*** FAVORITES ***", "one": False, "desc": "", "codes": favs}] if favs else []) + \
+           [{"name": "All cheats", "one": False, "desc": "", "codes": list(range(len(entries)))}]
+    data = {"cats": cats, "codes": codes}
+    _mch_cache[p] = (key, data)
+    return data
+
+
+def write_mgba(p, on_set):
+    pre, entries = _mgba_entries(p)
+    out = list(pre)
+    for i, e in enumerate(entries):
+        out += e["pre"] + ([] if i in on_set else ["!disabled"]) + [f"# {e['name']}"] + e["body"] + [""]
+    shutil.copy2(p, p + ".bak")
+    with open(p + ".tmp", "w", encoding="utf-8") as f:
+        f.write("\n".join(out))
+    os.replace(p + ".tmp", p)
+
+
 def write_cheats(gid, on_set):
-    p = mch_path(gid)
+    p = cheat_path(gid)
+    if p.endswith(".cheats"):
+        return write_mgba(p, on_set)
     data = parse_mch(gid)
     lines = open(p, encoding="utf-8", errors="replace").read().split("\n")
     shutil.copy2(p, p + ".bak")
@@ -185,13 +253,14 @@ def write_cheats(gid, on_set):
     os.replace(tmp, p)
 
 
-# ---------- melonDS ----------
+# ---------- emulators ----------
 
 # Find melonDS via macOS libproc/sysctl instead of spawning `ps` (~1 ms vs ~60 ms per check).
 import ctypes, ctypes.util
 _libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
 _libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
-_melon_pid = None  # last known melonDS pid: checked first, so a running game costs one syscall
+_melon_pid = None  # last known emulator pid: checked first, so a running game costs one syscall
+_EMU_EXES = ("melonDS.app/Contents/MacOS/melonDS", "mGBA.app/Contents/MacOS/mGBA")
 
 
 def _exe_path(pid):
@@ -214,17 +283,17 @@ def _proc_args(pid):
 
 
 def running_game():
-    """Return (pid, rom path or '') if melonDS is running, else None."""
+    """Return (pid, rom path or '') if melonDS or mGBA is running, else None."""
     global _melon_pid
     try:
         pid = None
-        if _melon_pid and _exe_path(_melon_pid).endswith("/MacOS/melonDS"):
+        if _melon_pid and _exe_path(_melon_pid).endswith(_EMU_EXES):
             pid = _melon_pid
         else:
             n = _libproc.proc_listallpids(None, 0)
             pids = (ctypes.c_int * (n + 64))()
             n = _libproc.proc_listallpids(pids, ctypes.sizeof(pids))
-            pid = next((q for q in pids[:n] if q > 0 and _exe_path(q).endswith("melonDS.app/Contents/MacOS/melonDS")), None)
+            pid = next((q for q in pids[:n] if q > 0 and _exe_path(q).endswith(_EMU_EXES)), None)
         _melon_pid = pid
         if not pid:
             return None
@@ -249,7 +318,9 @@ def set_global_cheats(on):
 
 
 def quit_melon():
-    subprocess.run(["osascript", "-e", 'tell application "melonDS" to quit'], capture_output=True)
+    r = running_game()
+    app = "mGBA" if r and _exe_path(r[0]).endswith("/mGBA") else "melonDS"
+    subprocess.run(["osascript", "-e", f'tell application "{app}" to quit'], capture_output=True)
     for _ in range(20):
         if not running_game():
             return True
@@ -263,9 +334,10 @@ def quit_melon():
 
 def launch(gid):
     path = rom_path(gid)
-    subprocess.Popen([MELON, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    app, exe = EMULATOR[SYSTEM_BY_EXT[os.path.splitext(path)[1].lower()]]
+    subprocess.Popen([exe, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      stdin=subprocess.DEVNULL, start_new_session=True)
-    subprocess.Popen(["osascript", "-e", 'delay 1.5', "-e", 'tell application "melonDS" to activate'],
+    subprocess.Popen(["osascript", "-e", 'delay 1.5', "-e", f'tell application "{app}" to activate'],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -309,8 +381,15 @@ class H(BaseHTTPRequestHandler):
                 games = all_games()
                 return self.send(200, {"games": games, "running": running, "cheats_global": global_cheats()})
             if u.path == "/api/icon":
-                _, png = read_banner(rom_path(q["id"]))
-                return self.send(200, png or b"", "image/png", "max-age=86400")
+                rp = rom_path(q["id"])
+                if rp.lower().endswith(".nds"):
+                    png = read_banner(rp)[1]
+                else:  # box art saved by the importer, if any
+                    art = os.path.splitext(rp)[0] + ".png"
+                    png = open(art, "rb").read() if os.path.exists(art) else None
+                if not png:
+                    return self.send(404, {"error": "no icon"})
+                return self.send(200, png, "image/png", "max-age=86400")
             if u.path == "/api/cheats":
                 return self.send(200, parse_mch(q["id"]) or {"cats": [], "codes": []})
             if u.path == "/api/guide":
@@ -339,7 +418,7 @@ class H(BaseHTTPRequestHandler):
                     if not body.get("force"):
                         return self.send(409, {"error": "running"})
                     if not quit_melon():
-                        return self.send(500, {"error": "Couldn't close melonDS - close it yourself (Cmd+Q) and try again."})
+                        return self.send(500, {"error": "Couldn't close the emulator - close it yourself (Cmd+Q) and try again."})
                 launch(gid)
                 return self.send(200, {"ok": True})
             if p == "/api/quit":
@@ -348,7 +427,7 @@ class H(BaseHTTPRequestHandler):
                 gid = body["id"]
                 r = running_game()
                 if r and os.path.realpath(r[1]) == os.path.realpath(rom_path(gid)):
-                    return self.send(409, {"error": "This game is running. Close it first, or change cheats inside melonDS (System > Setup cheat codes)."})
+                    return self.send(409, {"error": "This game is running. Close it first, or change cheats inside the emulator (melonDS: System > Setup cheat codes, mGBA: Tools > Cheats)."})
                 write_cheats(gid, set(int(i) for i in body["on"]))
                 return self.send(200, {"ok": True})
             if p == "/api/global_cheats":
