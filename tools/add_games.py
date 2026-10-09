@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
-"""Import new DS games from ~/Downloads into ~/Games and install their cheats.
+"""Import new games from ~/Downloads into ~/Games and install their cheats.
+
+Systems: Nintendo DS (.nds -> ~/Games/DS, played in melonDS) and Game Boy / Color /
+Advance (.gb .gbc .gba -> ~/Games/GB, GBC, GBA, played in mGBA).
 
 usage:  python3 add_games.py            (do it)
         python3 add_games.py --dry-run  (just show what would happen)
 
-For each .nds file in Downloads, or .zip / .7z containing one:
+For each game file in Downloads, or .zip / .7z containing one:
   * skip it if that exact game is already in ~/Games
-  * extract it to ~/Games/Pokemon (Pokemon games) or ~/Games/DS (everything else)
-  * match it to the offline cheat database (cheats.xml) by game ID + header checksum
-  * write <game>.mch (melonDS cheat file: auto-picked Favorites + every code, all off)
+  * copy it into its system's folder
+  * DS: match the offline cheat database (cheats.xml) by game ID + header checksum and
+    write <game>.mch (melonDS cheat file: auto-picked Favorites + every code, all off)
+  * GB/GBC/GBA: identify it by CRC32 (No-Intro list), write <game>.cheats from libretro's
+    cheat files (mGBA format, all off, favorites marked with a star) and save box art
   * write "<game> - Cheat Guide.txt"
-Nothing is downloaded; the original archives are left untouched.
+The original files in Downloads are left untouched.
 """
-import os, re, shutil, subprocess, sys, tempfile, zlib
+import os, re, shutil, subprocess, sys, tempfile, zipfile, zlib
 import xml.etree.ElementTree as ET
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gameboy
 
 HOME = os.path.expanduser("~")
 GAMES = os.path.join(HOME, "Games")
@@ -22,6 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.environ.get("DS_CHEAT_DB", os.path.join(GAMES, "cheat-tools", "cheats.xml"))
 DRY = "--dry-run" in sys.argv
 
+GAME_EXTS = (".nds", ".gba", ".gbc", ".gb")
 KEYS = "D-Pad = arrow keys    A = D    B = A    X = W    Y = S\n  L = Q    R = E    Start = Return    Select = Shift"
 
 
@@ -35,13 +43,16 @@ def header_key(head):
 
 def existing_games():
     keys = set()
-    for folder in ("Pokemon", "DS"):
+    for folder in ("DS", "GBA", "GBC", "GB", "Pokemon"):
         d = os.path.join(GAMES, folder)
         for f in os.listdir(d) if os.path.isdir(d) else []:
+            fp = os.path.join(d, f)
             if f.lower().endswith(".nds"):
-                with open(os.path.join(d, f), "rb") as fh:
+                with open(fp, "rb") as fh:
                     gid, crcs = header_key(fh.read(512))
                 keys.add((gid, min(crcs)))
+            elif gameboy.system_for(f):
+                keys.add(("CRC", gameboy.rom_crc(open(fp, "rb").read())))
     return keys
 
 
@@ -56,33 +67,42 @@ def clean_name(fname):
 
 
 def archive_members(path):
-    if path.lower().endswith(".nds"):
+    if path.lower().endswith(GAME_EXTS):
         return [os.path.basename(path)]
     if path.lower().endswith(".zip"):
-        r = subprocess.run(["unzip", "-Z1", path], capture_output=True, text=True)
+        try:
+            with zipfile.ZipFile(path) as z:
+                names = z.namelist()
+        except (zipfile.BadZipFile, OSError):
+            return []
     else:
-        r = subprocess.run(["tar", "-tf", path], capture_output=True, text=True)
-    return [m for m in r.stdout.splitlines() if m.lower().endswith(".nds")]
+        names = subprocess.run(["tar", "-tf", path], capture_output=True, text=True).stdout.splitlines()
+    return [m for m in names if m.lower().endswith(GAME_EXTS)]
 
 
-def read_head(path, member):
-    if path.lower().endswith(".nds"):
+def read_head(path, member, size=512):
+    if path.lower().endswith(GAME_EXTS):
         with open(path, "rb") as f:
-            return f.read(512)
-    cmd = ["unzip", "-p", path, member] if path.lower().endswith(".zip") else ["tar", "-xOf", path, member]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    head = p.stdout.read(512)
+            return f.read(size) if size else f.read()
+    if path.lower().endswith(".zip"):
+        with zipfile.ZipFile(path) as z, z.open(member) as f:
+            return f.read(size) if size else f.read()
+    p = subprocess.Popen(["tar", "-xOf", path, member], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    head = p.stdout.read(size) if size else p.stdout.read()
     p.kill(); p.wait()
     return head
 
 
 def extract(path, member, dest_dir):
-    if path.lower().endswith(".nds"):  # loose file: copy, never move the original
+    if path.lower().endswith(GAME_EXTS):  # loose file: copy, never move the original
         out = os.path.join(dest_dir, os.path.basename(path))
         shutil.copy2(path, out)
         return out
     if path.lower().endswith(".zip"):
-        subprocess.run(["unzip", "-q", "-o", "-j", path, member, "-d", dest_dir], check=True)
+        out = os.path.join(dest_dir, os.path.basename(member))
+        with zipfile.ZipFile(path) as z, z.open(member) as src, open(out, "wb") as dst:
+            shutil.copyfileobj(src, dst, 1 << 20)
+        return out
     else:
         subprocess.run(["tar", "-xf", path, "-C", dest_dir, member], check=True)
     out = os.path.join(dest_dir, os.path.basename(member))
@@ -177,8 +197,8 @@ def pick_favorites(cats, limit=12):
         c, ch = cats[ci], cats[ci]["cheats"][chi]
         key = re.sub(r"\b(v\d+(\.\d+)?|\(.*?\))", "", ch["name"].lower()).strip()
         # "kind" groups look-alike codes: "All Medals: Mario/Luigi/...", "AK-47/M4/... Max/Perfect Stats"
-        name = ch["name"].lower()
-        kind = (ci, name.split(":", 1)[0] if ":" in name else re.sub(r"^\S+(\s*\([^)]*\))?\s*", "", name))
+        name = re.sub(r"\s*[\(\[][^)\]]*[\)\]]", "", ch["name"].lower())  # "Gold (Cute)" ~ "Gold (Cool)"
+        kind = (ci, name.split(":", 1)[0] if ":" in name else name if len(name.split()) > 3 else re.sub(r"^\S+\s*", "", name))
         if key in seen or (c["onlyone"] and ci in used_onlyone) or per_cat.get(ci, 0) >= 6 or per_cat.get(kind, 0) >= 2:
             continue
         per_cat[ci] = per_cat.get(ci, 0) + 1
@@ -231,21 +251,26 @@ def write_mch(path, cats, favs):
         f.write("\n".join(m) + "\n")
 
 
-def write_guide(path, title, rom_rel, cats, favs, exact):
+def write_guide(path, title, rom_rel, cats, favs, exact, system="DS"):
     total = sum(len(c["cheats"]) for c in cats)
     required = [ch["name"] for c in cats for ch in c["cheats"]
                 if re.search(r"must be on|master code|enable code", ch["name"], re.I)]
     g = [f"{title.upper()} - CHEAT GUIDE", "=" * (len(title) + 14), "",
          "Everything here works fully offline. No internet needed.", "",
-         "HOW TO USE",
+         "HOW TO USE"] + ([
          "  1. Open DS Launcher (Dock) and click this game, or in melonDS use",
          f"     File > Open ROM... > ~/Games/{rom_rel}",
-         "  2. Make sure the master 'Cheats' switch is ON (top right of DS Launcher,",
-         "     or System > Enable cheats in melonDS).",
+         "  2. Make sure the 'Cheats' switch in the game's DS Launcher panel is ON",
+         "     (or System > Enable cheats in melonDS).",
          "  3. Tick cheats in DS Launcher (applies next time you start the game), or",
          "     in melonDS: System > Setup cheat codes (applies right away).",
          "  4. 'Always on' cheats just work. Others need the button combo shown -",
-         "     press all the buttons at the same time.", "",
+         "     press all the buttons at the same time.", ""] if system == "DS" else [
+         "  1. Open DS Launcher (Dock) and click this game - it opens in mGBA. Or in mGBA:",
+         f"     File > Load ROM... > ~/Games/{rom_rel}",
+         "  2. Tick cheats in DS Launcher (applies next time you start the game), or",
+         "     in mGBA: Tools > Cheats... (applies right away).",
+         "  3. If a 'Master Code' is listed, tick it too - many codes need it.", ""]) + [
          "YOUR CONTROLS (DS button = keyboard key)",
          "  " + KEYS,
          "  Hold Tab = fast-forward   Shift+F1..F8 = save state   F1..F8 = load state", ""]
@@ -284,17 +309,62 @@ def write_guide(path, title, rom_rel, cats, favs, exact):
         f.write("\n".join(g) + "\n")
 
 
+def import_gameboy(ap, archive_name, member, have, report, tmp):
+    folder, system = gameboy.system_for(member)
+    data = read_head(ap, member, size=0)
+    if len(data) < 0x150:
+        report.append(("FAILED", archive_name, "could not read"))
+        return
+    crc = gameboy.rom_crc(data)
+    if ("CRC", crc) in have:
+        return
+    have.add(("CRC", crc))
+    nointro = gameboy.nointro_names(system).get(crc)
+    name = clean_name(nointro or member)
+    ext = os.path.splitext(member)[1].lower()
+    dest = os.path.join(GAMES, folder, name + ext)
+    if os.path.exists(dest):
+        name += f" ({crc})"
+        dest = os.path.join(GAMES, folder, name + ext)
+    cheats = []
+    for f in gameboy.find_cheat_files(system, nointro, name):
+        dev = gameboy.device_of(f)
+        cheats += [(d, dev, gameboy.code_lines(t)) for d, t in gameboy.parse_cht(f)]
+    cats = [{"name": "Cheats", "onlyone": False, "note": "",
+             "cheats": [{"name": n + (f" [{d}]" if d else ""), "note": "", "codes": ["x"] * 2} for n, d, _ in cheats]}]
+    favs = {chi for _, chi in pick_favorites(cats)} if cheats else set()
+    favs |= {i for i, (n, _, _) in enumerate(cheats) if re.search(r"master code|\(m\)|must be on", n, re.I)}
+    status = ("matched" if nointro else "unknown dump") + (", no cheats in database" if not cheats else "")
+    report.append((name, folder, f"{len(cheats)} cheats, {len(favs)} favorites ({status})"))
+    if DRY:
+        return
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as f:
+        f.write(data)
+    base = os.path.splitext(dest)[0]
+    if cheats:
+        gameboy.write_mgba_cheats(base + ".cheats", cheats, favs)
+        guide_cats = [{"name": "Cheats", "onlyone": False, "note": "",
+                       "cheats": [{"name": n + (f" [{d}]" if d else ""), "note": "", "codes": []} for n, d, _ in cheats]}]
+        write_guide(base + " - Cheat Guide.txt", re.sub(r"\s*\([^)]*\)", "", nointro or name).strip(),
+                    f"{folder}/{name}{ext}", guide_cats, sorted((0, i) for i in favs), bool(nointro), system="GB")
+    gameboy.boxart(system, nointro, base + ".png")
+
+
 # ---------- main ----------
 
 def main():
     have = existing_games()
     db = load_db()
-    archives = sorted(f for f in os.listdir(DOWNLOADS) if f.lower().endswith((".zip", ".7z", ".nds")))
+    archives = sorted(f for f in os.listdir(DOWNLOADS) if f.lower().endswith((".zip", ".7z") + GAME_EXTS))
     report = []
     with tempfile.TemporaryDirectory() as tmp:
         for a in archives:
             ap = os.path.join(DOWNLOADS, a)
             for member in archive_members(ap):
+                if gameboy.system_for(member):
+                    import_gameboy(ap, a, member, have, report, tmp)
+                    continue
                 head = read_head(ap, member)
                 if len(head) < 512:
                     report.append(("FAILED", a, "could not read"))
@@ -303,7 +373,7 @@ def main():
                 if (gid, min(crcs)) in have:
                     continue
                 name = clean_name(member)
-                folder = "Pokemon" if re.search(r"pok[eé]mon", name, re.I) else "DS"
+                folder = "DS"
                 dest = os.path.join(GAMES, folder, name + ".nds")
                 if os.path.exists(dest):
                     name += f" ({gid})"
@@ -331,6 +401,7 @@ def main():
                 if cats:
                     write_mch(base + ".mch", cats, favs)
                     write_guide(base + " - Cheat Guide.txt", title, f"{folder}/{name}.nds", cats, favs, bool(exact))
+
     if not report:
         print("No new games found in Downloads.")
     for r in report:
