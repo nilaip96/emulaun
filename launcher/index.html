@@ -501,7 +501,7 @@ function renderTop() {
       const s = g.states.find(x => x.slot === n);
       if (!s) return "";
       if (n === 0) return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span class="hint" style="margin:0">resumes automatically</span></div>`;
-      if (n === 8 && g.system === "DS") return `<div class="save st"><span>Autosave (on close)</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F8</span></span></div>`;
+      if (n === 8 && g.system === "DS") return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F8</span></span></div>`;
       return `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>`;
     })).join("");
   play.innerHTML = `<div class="row"><button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>
@@ -510,7 +510,7 @@ function renderTop() {
     <label class="switch" style="margin-top:10px"><input type="checkbox" id="fsToggle" ${state.fullscreen ? "checked" : ""}> Launch full screen</label>
     <h3 style="margin-top:16px">Your saves</h3>
     <div class="saves">${saves}</div>
-    <div class="hint">${g.system === "DS" ? "Closing with EmuLaun's <b>Save &amp; close</b> button makes a save state in slot 8 — press <span class='kbd'>F8</span> to resume. (Quitting melonDS directly doesn't.)" : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
+    <div class="hint">${g.system === "DS" ? "EmuLaun autosaves DS games to slot 8 every minute while you play, and again when you use <b>Save &amp; close</b>. Press <span class='kbd'>F8</span> after opening the game to resume." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
     <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
       <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
     <div id="guideWrap"></div>`;

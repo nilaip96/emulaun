@@ -39,6 +39,8 @@ cat > "$APP/Contents/Info.plist" <<EOF
 </dict></plist>
 EOF
 
-codesign --force --deep -s - "$APP" >/dev/null 2>&1
+# Ad-hoc signed, but with a fixed designated requirement so macOS privacy permissions (Accessibility,
+# needed for DS save states) survive rebuilds instead of being tied to one exact build.
+codesign --force --deep -s - -r='designated => identifier "local.emulaun"' "$APP" >/dev/null 2>&1
 rm -rf build/tmp
 echo "✓ built $PWD/$APP"

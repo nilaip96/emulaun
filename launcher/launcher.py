@@ -406,13 +406,73 @@ def set_global_cheats(on):
 DS_AUTOSAVE_SLOT = 8  # melonDS: Shift+F8 saves slot 8 (Game.ml8), F8 loads it
 
 
+DS_AUTOSAVE_SECS = int(os.environ.get("DS_AUTOSAVE_SECS", "60"))
+_F_KEYS = {1: 122, 2: 120, 3: 99, 4: 118, 5: 96, 6: 97, 7: 98, 8: 100}  # macOS virtual key codes
+
+
+# JavaScript for osascript: press F<n> with only the Shift *flag* set, so melonDS sees Shift+F<n> (save
+# state) while the Shift key itself is never pressed (it may be a game button, e.g. L). The key goes
+# through the normal keyboard route, so melonDS must be in front: with activate=1 it's brought forward,
+# otherwise nothing is sent unless it already is. Run via osascript because that's the program macOS
+# grants Accessibility to here.
+_SHIFT_FKEY_JS = """ObjC.import('CoreGraphics'); ObjC.import('AppKit');
+function run(argv) {
+  const pid = parseInt(argv[0]), key = parseInt(argv[1]), activate = argv[2] === "1";
+  const front = () => $.NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier === pid;
+  if (activate && !front()) {
+    $.NSRunningApplication.runningApplicationWithProcessIdentifier(pid).activateWithOptions(2);
+    delay(0.6);
+  }
+  if (!front()) return "skipped";
+  [true, false].forEach(down => {
+    const e = $.CGEventCreateKeyboardEvent(null, key, down);
+    $.CGEventSetFlags(e, 131072);
+    $.CGEventPost(0, e);
+    delay(0.05);
+  });
+  return "sent";
+}"""
+
+
+def ds_save_state(pid, slot=DS_AUTOSAVE_SLOT, activate=False):
+    """Make a melonDS save state (Shift+F<slot>). Returns (sent, error)."""
+    r = subprocess.run(["osascript", "-l", "JavaScript", "-e", _SHIFT_FKEY_JS, str(pid), str(_F_KEYS[slot]),
+                        "1" if activate else "0"], capture_output=True, text=True)
+    return r.returncode == 0 and r.stdout.strip() == "sent", r.stderr.strip()
+
+
 def ds_autosave():
-    """Make a melonDS save state (slot 8) before closing. Needs Accessibility permission for EmuLaun."""
-    key_code = {1: 122, 2: 120, 3: 99, 4: 118, 5: 96, 6: 97, 7: 98, 8: 100}[DS_AUTOSAVE_SLOT]
-    script = ['tell application "System Events" to tell process "melonDS" to set frontmost to true', "delay 0.4",
-              f'tell application "System Events" to key code {key_code} using shift down', "delay 1.2"]
-    r = subprocess.run(["osascript"] + sum([["-e", x] for x in script], []), capture_output=True, text=True)
-    return r.returncode == 0, r.stderr.strip()
+    r = running_game()
+    if not r or not _exe_path(r[0]).endswith("/melonDS"):
+        return False, "melonDS isn't running"
+    state = os.path.splitext(r[1])[0] + f".ml{DS_AUTOSAVE_SLOT}"
+    before = os.path.getmtime(state) if os.path.exists(state) else 0
+    ok, err = ds_save_state(r[0], activate=True)
+    if not ok:
+        return False, err or "couldn't bring melonDS to the front"
+    for _ in range(30):  # confirm melonDS really wrote the state before it gets closed
+        time.sleep(0.2)
+        if os.path.exists(state) and os.path.getmtime(state) > before:
+            time.sleep(0.5)
+            return True, ""
+    return False, "melonDS didn't write a save state (is EmuLaun allowed in Accessibility?)"
+
+
+def ds_autosave_loop(rom):
+    """Runs detached alongside a DS game (survives EmuLaun closing): save a state every minute."""
+    pid = None
+    for _ in range(60):  # wait for melonDS to start
+        r = _running_game()
+        if r and _exe_path(r[0]).endswith("/melonDS") and os.path.realpath(r[1]) == os.path.realpath(rom):
+            pid = r[0]
+            break
+        time.sleep(1)
+    while pid:
+        for _ in range(DS_AUTOSAVE_SECS):
+            time.sleep(1)
+            if not _exe_path(pid).endswith("/melonDS"):
+                return
+        ds_save_state(pid)
 
 
 def quit_melon():
@@ -446,6 +506,9 @@ def launch(gid):
     env = dict(os.environ, EMULAUN_ID=gid, EMULAUN_LOG=PLAYLOG, EMULAUN_SESSION=SESSION)
     subprocess.Popen(["/bin/sh", "-c", wrapper, exe] + args, env=env, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
+    if app == "melonDS" and not os.environ.get("DS_DEMO"):  # DS: EmuLaun autosaves (mGBA does its own)
+        subprocess.Popen([sys.executable, os.path.abspath(__file__), "--ds-autosave", path], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.Popen(["osascript", "-e", 'delay 1.5', "-e", f'tell application "{app}" to activate'],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -573,6 +636,8 @@ class H(BaseHTTPRequestHandler):
 
 
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--ds-autosave":
+        return ds_autosave_loop(sys.argv[2])
     url = f"http://127.0.0.1:{PORT}/"
     try:  # is a launcher already answering on this port?
         socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()
