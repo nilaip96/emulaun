@@ -16,6 +16,10 @@
 - **Grid or list view.** The list view shows your games on the left and the selected game's details on the right (<kbd>↑</kbd> <kbd>↓</kbd> to browse, <kbd>Return</kbd> to play).
 - **Library** with each game's real DS icon (read from the game file). Sort by **Recent**, **A–Z** or **Color**, and search.
 - **Four systems**: DS games open in melonDS, and GB, GBC and GBA games open in mGBA. Each game has a system badge, and you can filter by system.
+- **Playtime tracking**, pinned favorites at the top, and hidden games (one click to show or hide).
+- **Silent save backups**: before every launch the game's save is copied to `backups/saves/` (if it changed), keeping the last 5.
+- **Full-screen launch** (toggle in the game panel) and **sharp graphics**: the installer sets melonDS to OpenGL at 3× resolution and mGBA to whole-number scaling.
+- **Autosave**: GB/GBC/GBA resume automatically. For DS, EmuLaun's **Save & close** makes a save state in slot 8 (`F8` to resume). This needs Accessibility permission for EmuLaun.
 - **Per-game colors** taken from each icon and used for the card glow, the pop-up and the Play button.
 - **Game pop-up** with:
   - **Play**, which starts melonDS with the game

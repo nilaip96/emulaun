@@ -33,7 +33,7 @@ def scan_games():
     out = []
     for folder in sorted(os.listdir(GAMES)):
         d = os.path.join(GAMES, folder)
-        if folder in SKIP_DIRS or not os.path.isdir(d):
+        if folder in SKIP_DIRS or folder.startswith(".") or not os.path.isdir(d):
             continue
         for f in sorted(os.listdir(d)):
             if os.path.splitext(f)[1].lower() in SYSTEM_BY_EXT:
@@ -129,13 +129,92 @@ def game_info(gid, files=None):
 def all_games():
     listing = {}
     out = []
+    prefs, play, sess = load_prefs(), playtime(), current_session()
     for gid in scan_games():
         folder = os.path.dirname(gid)
         if folder not in listing:
             listing[folder] = set(os.listdir(os.path.join(GAMES, folder)))
-        out.append(game_info(gid, listing[folder]))
+        g = game_info(gid, listing[folder])
+        pt = play.get(gid, {"secs": 0, "last": 0})
+        live = sess and sess.get("id") == gid and running_game()
+        g["played"] = pt["secs"] + (int(time.time()) - sess["start"] if live else 0)
+        g["last"] = max(g["last"], pt["last"], sess["start"] if live else 0)
+        g["pinned"] = gid in prefs["pinned"]
+        g["hidden"] = gid in prefs["hidden"]
+        out.append(g)
     return out
 
+
+
+# ---------- library state: prefs, playtime, save backups ----------
+# Kept next to the games (games/.emulaun/) so it travels with the library.
+STATE_DIR = os.path.join(GAMES, ".emulaun")
+PREFS = os.path.join(STATE_DIR, "prefs.json")
+PLAYLOG = os.path.join(STATE_DIR, "playtime.tsv")      # id <tab> start <tab> end, one line per session
+SESSION = os.path.join(STATE_DIR, "session.json")      # the game currently being played
+SAVE_BACKUPS = os.path.join(os.path.dirname(GAMES), "backups", "saves")
+KEEP_BACKUPS = 5
+
+
+def load_prefs():
+    try:
+        p = json.load(open(PREFS))
+    except (OSError, ValueError):
+        p = {}
+    p.setdefault("pinned", []); p.setdefault("hidden", []); p.setdefault("fullscreen", True)
+    return p
+
+
+def save_prefs(p):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(PREFS + ".tmp", "w") as f:
+        json.dump(p, f, indent=1)
+    os.replace(PREFS + ".tmp", PREFS)
+
+
+_play_cache = (None, {})
+
+def playtime():
+    """id -> {"secs": total seconds, "last": last end time}, from the play log (cached by mtime)."""
+    global _play_cache
+    try:
+        key = os.stat(PLAYLOG).st_mtime_ns
+    except OSError:
+        return {}
+    if _play_cache[0] == key:
+        return _play_cache[1]
+    out = {}
+    for line in open(PLAYLOG, encoding="utf-8", errors="replace"):
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
+            d = out.setdefault(parts[0], {"secs": 0, "last": 0})
+            d["secs"] += max(0, int(parts[2]) - int(parts[1]))
+            d["last"] = max(d["last"], int(parts[2]))
+    _play_cache = (key, out)
+    return out
+
+
+def current_session():
+    try:
+        return json.load(open(SESSION))
+    except (OSError, ValueError):
+        return None
+
+
+def backup_save(gid):
+    """Copy the game's .sav into backups/saves/ before launching, if it changed; keep the newest few."""
+    sav = os.path.splitext(rom_path(gid))[0] + ".sav"
+    if not os.path.exists(sav):
+        return
+    d = os.path.join(SAVE_BACKUPS, os.path.splitext(gid)[0])
+    os.makedirs(d, exist_ok=True)
+    olds = sorted(f for f in os.listdir(d) if f.endswith(".sav"))
+    data = open(sav, "rb").read()
+    if olds and open(os.path.join(d, olds[-1]), "rb").read() == data:
+        return  # unchanged since the last backup
+    shutil.copy2(sav, os.path.join(d, datetime.now().strftime("%Y-%m-%d %H%M%S") + ".sav"))
+    for f in sorted(f for f in os.listdir(d) if f.endswith(".sav"))[:-KEEP_BACKUPS]:
+        os.remove(os.path.join(d, f))
 
 
 # ---------- cheats (.mch, melonDS format) ----------
@@ -305,7 +384,7 @@ def _running_game():
         if not pid:
             return None
         args = _proc_args(pid)
-        return pid, (args[1] if len(args) > 1 else "")
+        return pid, (args[-1] if len(args) > 1 else "")
     except Exception:
         return None
 
@@ -322,6 +401,18 @@ def set_global_cheats(on):
     txt = open(CONFIG).read()
     txt = re.sub(r"^EnableCheats = (true|false)", f"EnableCheats = {'true' if on else 'false'}", txt, count=1, flags=re.M)
     open(CONFIG, "w").write(txt)
+
+
+DS_AUTOSAVE_SLOT = 8  # melonDS: Shift+F8 saves slot 8 (Game.ml8), F8 loads it
+
+
+def ds_autosave():
+    """Make a melonDS save state (slot 8) before closing. Needs Accessibility permission for EmuLaun."""
+    key_code = {1: 122, 2: 120, 3: 99, 4: 118, 5: 96, 6: 97, 7: 98, 8: 100}[DS_AUTOSAVE_SLOT]
+    script = ['tell application "System Events" to tell process "melonDS" to set frontmost to true', "delay 0.4",
+              f'tell application "System Events" to key code {key_code} using shift down', "delay 1.2"]
+    r = subprocess.run(["osascript"] + sum([["-e", x] for x in script], []), capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip()
 
 
 def quit_melon():
@@ -342,8 +433,19 @@ def quit_melon():
 def launch(gid):
     path = rom_path(gid)
     app, exe = EMULATOR[SYSTEM_BY_EXT[os.path.splitext(path)[1].lower()]]
-    subprocess.Popen([exe, path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     stdin=subprocess.DEVNULL, start_new_session=True)
+    try:
+        backup_save(gid)
+    except OSError:
+        pass
+    args = (["-f"] if load_prefs()["fullscreen"] else []) + [path]
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(SESSION, "w") as f:
+        json.dump({"id": gid, "start": int(time.time())}, f)
+    # A tiny shell wrapper logs the session when the emulator exits, even if EmuLaun was closed meanwhile.
+    wrapper = 'start=$(date +%s); "$0" "$@"; printf "%s\\t%s\\t%s\\n" "$EMULAUN_ID" "$start" "$(date +%s)" >> "$EMULAUN_LOG"; rm -f "$EMULAUN_SESSION"'
+    env = dict(os.environ, EMULAUN_ID=gid, EMULAUN_LOG=PLAYLOG, EMULAUN_SESSION=SESSION)
+    subprocess.Popen(["/bin/sh", "-c", wrapper, exe] + args, env=env, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
     subprocess.Popen(["osascript", "-e", 'delay 1.5', "-e", f'tell application "{app}" to activate'],
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -386,7 +488,8 @@ class H(BaseHTTPRequestHandler):
                     rel = os.path.relpath(r[1], GAMES) if r[1].startswith(GAMES) else ""
                     running = {"id": rel, "emulator": "mGBA" if _exe_path(r[0]).endswith("/mGBA") else "melonDS"}
                 games = all_games()
-                return self.send(200, {"games": games, "running": running, "cheats_global": global_cheats()})
+                return self.send(200, {"games": games, "running": running, "cheats_global": global_cheats(),
+                                       "fullscreen": load_prefs()["fullscreen"]})
             if u.path == "/api/icon":
                 rp = rom_path(q["id"])
                 if rp.lower().endswith(".nds"):
@@ -429,7 +532,26 @@ class H(BaseHTTPRequestHandler):
                 launch(gid)
                 return self.send(200, {"ok": True})
             if p == "/api/quit":
-                return self.send(200, {"ok": quit_melon()})
+                r = running_game()
+                saved = None
+                if r and _exe_path(r[0]).endswith("/melonDS") and not body.get("nosave"):
+                    ok, err = ds_autosave()
+                    if not ok:
+                        return self.send(409, {"error": "autosave", "detail": err})
+                    saved = DS_AUTOSAVE_SLOT
+                return self.send(200, {"ok": quit_melon(), "saved_slot": saved})
+            if p == "/api/prefs":
+                prefs = load_prefs()
+                if "fullscreen" in body:
+                    prefs["fullscreen"] = bool(body["fullscreen"])
+                if "id" in body:
+                    gid = body["id"]; rom_path(gid)
+                    for key in ("pinned", "hidden"):
+                        if key in body:
+                            lst = [x for x in prefs[key] if x != gid]
+                            prefs[key] = lst + ([gid] if body[key] else [])
+                save_prefs(prefs)
+                return self.send(200, {"ok": True})
             if p == "/api/cheats":
                 gid = body["id"]
                 r = running_game()

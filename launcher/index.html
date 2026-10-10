@@ -98,6 +98,11 @@ body.listmode main{padding-bottom:20px}
 .pick-t{font-size:20px;font-weight:700;margin-bottom:6px}
 .cnt{font-size:.85em;font-weight:600;opacity:.6;margin-left:2px}
 .section .cnt{opacity:.75;font-weight:700}
+.pt{color:var(--cyan);font-weight:600;white-space:nowrap}
+.section.pin{color:var(--pink)} .section.hid{color:var(--muted)}
+button.chip{padding:3px 10px;font-size:12px;border-radius:999px;background:rgba(0,0,0,.25)}
+button.chip.on{border-color:color-mix(in srgb,var(--c) 70%,transparent);background:color-mix(in srgb,var(--c) 22%,transparent)}
+#hiddenBtn.on{border-color:var(--cyan);color:var(--cyan)}
 /* systems: badge, box art, fallback tiles */
 .sys{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:1px 5px;border-radius:5px;vertical-align:1px;
   color:var(--s);border:1px solid color-mix(in srgb,var(--s) 45%,transparent);background:color-mix(in srgb,var(--s) 12%,transparent)}
@@ -181,6 +186,7 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
   <input type="search" id="q" placeholder="Search games…">
   <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
   <div class="seg" id="sys"></div>
+  <button class="small" id="hiddenBtn" style="display:none"></button>
   <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
   <div class="spacer"></div>
   <div class="status" id="status" style="display:none"></div>
@@ -194,6 +200,14 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 const $ = s => document.querySelector(s);
 let state = {games: [], running: null, cheats_global: false};
 let current = null, cheatData = null;
+let showHidden = false;
+function renderHiddenBtn() {
+  const n = state.games.filter(g => g.hidden).length, b = $("#hiddenBtn");
+  b.style.display = n || showHidden ? "" : "none";
+  b.classList.toggle("on", showHidden);
+  b.textContent = showHidden ? "← Back to library" : `🙈 Hidden ${n}`;
+  b.onclick = () => { showHidden = !showHidden; renderHiddenBtn(); renderGrid(); };
+}
 let sysFilter = (() => { try { return localStorage.getItem("sys") || "all"; } catch { return "all"; } })();
 function renderSysFilter() {
   const present = ["DS", "GBA", "GBC", "GB"].filter(s => state.games.some(g => g.system === s));
@@ -297,13 +311,14 @@ async function refresh() {
   }
   renderHeader();
   renderSysFilter();
+  renderHiddenBtn();
   if (!refresh._deep && location.hash.length > 1) {  // deep link: #view=list&game=DS/Name.nds
     refresh._deep = true;
     const h = new URLSearchParams(location.hash.slice(1)), id = h.get("game");
     if (["grid", "list"].includes(h.get("view")) && h.get("view") !== viewMode) document.querySelector(`#view button[data-v="${h.get("view")}"]`).click();
     if (id && state.games.some(g => g.id === id)) setTimeout(() => openGame(id), 0);
   }
-  const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on]), state.running]);
+  const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on, g.pinned, g.hidden, Math.floor(g.played / 60)]), state.running]);
   if (gsig !== renderGrid._sig) { renderGrid._sig = gsig; renderGrid(); }
   if (current) {
     const g = state.games.find(g => g.id === current.id);
@@ -316,13 +331,23 @@ function renderHeader() {
   // only shows something while an emulator is open
   const r = state.running, g = r && state.games.find(x => x.id === r.id);
   const html = !r ? "" : `<span class="dot on"></span><span>${g ? `Playing <b>${esc(g.title)}</b> in ${esc(r.emulator)}` : `${esc(r.emulator)} is open`}</span>
-    <button class="small danger" id="quitBtn">Close</button>`;
+    <button class="small danger" id="quitBtn">${r.emulator === "melonDS" ? "Save &amp; close" : "Close"}</button>`;
   if ($("#status").dataset.html === html) return;
   $("#status").dataset.html = html;
   $("#status").innerHTML = html;
   $("#status").style.display = r ? "" : "none";
   const qb = $("#quitBtn");
-  if (qb) qb.onclick = async () => { if (confirm(`Close ${r.emulator}? Save in-game first or you'll lose unsaved progress.`)) { await api("/api/quit", {}); refresh(); } };
+  if (qb) qb.onclick = async () => {
+    if (r.emulator !== "melonDS" && !confirm("Close mGBA? It autosaves, so you'll pick up where you left off.")) return;
+    try {
+      const res = await api("/api/quit", {});
+      if (res.saved_slot) toast(`Saved to slot ${res.saved_slot} — press F${res.saved_slot} next time to resume`);
+    } catch (e) {
+      if (e.message === "autosave" && confirm("EmuLaun couldn't make a save state. Allow it in System Settings → Privacy & Security → Accessibility (turn on EmuLaun), then try again.\n\nClose WITHOUT saving instead?"))
+        await api("/api/quit", {nosave: true});
+    }
+    refresh();
+  };
 }
 
 // ---- views: "grid" (cards + pop-up) or "list" (list + side-by-side details) ----
@@ -332,17 +357,23 @@ let ordered = [];  // games in on-screen order (for arrow-key browsing)
 
 function sortedGroups() {
   const q = $("#q").value.trim().toLowerCase();
-  const games = state.games.filter(g => (sysFilter === "all" || g.system === sysFilter) && (!q || (g.title + " " + g.name).toLowerCase().includes(q)));
+  const matches = state.games.filter(g => (sysFilter === "all" || g.system === sysFilter) && (!q || (g.title + " " + g.name).toLowerCase().includes(q)));
+  if (showHidden) return [["Hidden games", matches.filter(g => g.hidden).sort((a, b) => a.title.localeCompare(b.title))]].filter(([, l]) => l.length);
+  const visible = matches.filter(g => !g.hidden);
   const byName = (a, b) => a.title.localeCompare(b.title);
-  if (sortMode === "color")
-    return [["", [...games].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))]];
-  if (sortMode === "az") return [["", [...games].sort(byName)]];
+  const pinned = visible.filter(g => g.pinned), games = visible.filter(g => !g.pinned);
+  const sortList = l => sortMode === "color" ? [...l].sort((a, b) => hueKey(colorFor(a.id)) - hueKey(colorFor(b.id)) || byName(a, b))
+    : sortMode === "az" ? [...l].sort(byName) : [...l].sort((a, b) => (b.last - a.last) || byName(a, b));
+  const head = [["Pinned", sortList(pinned)]];
+  if (sortMode !== "recent") return head.concat([[pinned.length ? "All games" : "", sortList(games)]]).filter(([, l]) => l.length);
   const played = games.filter(g => g.last).sort((a, b) => b.last - a.last);
   const rest = games.filter(g => !g.last).sort(byName);
-  return [["Recently played", played], [played.length ? "Not played yet" : "", rest]].filter(([, l]) => l.length);
+  return head.concat([["Recently played", played], [played.length || pinned.length ? "Not played yet" : "", rest]]).filter(([, l]) => l.length);
 }
-const sectionLabel = (label, n) => label ? `<div class="section ${label === "Recently played" ? "recent" : "new"}">${label} <span class="cnt">${n}</span></div>` : "";
+const sectionLabel = (label, n) => label ? `<div class="section ${{"Recently played": "recent", "Pinned": "pin", "Hidden games": "hid"}[label] || "new"}">${label === "Pinned" ? "📌 " : ""}${label} <span class="cnt">${n}</span></div>` : "";
 const isPlaying = g => state.running && state.running.id === g.id;
+const fmtPlay = secs => secs < 60 ? (secs ? "<1m" : "") : secs < 3600 ? `${Math.round(secs / 60)}m` : `${Math.floor(secs / 3600)}h ${Math.round(secs % 3600 / 60)}m`;
+const playedTag = g => g.played >= 60 ? `<span class="pt">⏱ ${fmtPlay(g.played)}</span>` : "";
 
 function renderGrid() {
   document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.v === viewMode));
@@ -359,7 +390,8 @@ function renderGrid() {
         ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
         <div class="ic">${iconHTML(g)}</div>
         <div class="txt"><div class="t">${esc(g.title)}</div>
-        <div class="m">${sysBadge(g)} ${g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+        <div class="m">${sysBadge(g)} ${g.save ? "Saved " + esc(g.save) : "No save yet"}</div>
+        ${g.played >= 60 ? `<div class="m">${playedTag(g)}</div>` : ""}</div>
       </div>`).join("")}
     </div>`).join("");
   paintColors($("#main"));
@@ -383,7 +415,7 @@ function renderList(groups) {
       <div class="li${g.id === sel ? " sel" : ""}" data-id="${esc(g.id)}" tabindex="0">
         <div class="ic">${iconHTML(g)}</div>
         <div class="txt"><div class="t">${esc(g.title)}</div>
-          <div class="m">${sysBadge(g)} ${isPlaying(g) ? `<span class="playing">● Playing</span>` : g.save ? "Saved " + esc(g.save) : "No save yet"}</div></div>
+          <div class="m">${sysBadge(g)} ${isPlaying(g) ? `<span class="playing">● Playing</span>` : g.save ? "Saved " + esc(g.save) : "No save yet"} ${playedTag(g)}</div></div>
         ${g.cheats_on ? `<span class="badge ch">★ ${g.cheats_on}</span>` : ""}
       </div>`).join("")}`).join("");
   paintColors($("#listCol"));
@@ -450,9 +482,16 @@ function renderTop() {
   const g = current;
   const running = state.running && state.running.id === g.id;
   $("#dtop").innerHTML = `<div class="ic">${iconHTML(g)}</div><div><div class="t">${esc(g.title)} ${sysBadge(g)}</div>
-    <div class="m">${g.save ? "Last saved " + esc(g.save) : "No save yet"}</div></div>
+    <div class="m">${g.played >= 60 ? `Played ${fmtPlay(g.played)} · ` : ""}${g.save ? "Last saved " + esc(g.save) : "No save yet"}</div>
+    <div class="row" style="margin-top:8px;gap:6px">
+      <button class="small chip ${g.pinned ? "on" : ""}" id="pinBtn">${g.pinned ? "📌 Pinned" : "📌 Pin"}</button>
+      <button class="small chip ${g.hidden ? "on" : ""}" id="hideBtn">${g.hidden ? "🙈 Hidden" : "🙈 Hide"}</button></div></div>
     <button class="close" aria-label="Close">×</button>`;
   $("#dtop .close").onclick = closeDrawer;
+  const setPref = async (key, val) => { await api("/api/prefs", {id: g.id, [key]: val}); g[key] = val;
+    toast(key === "pinned" ? (val ? "Pinned to the top" : "Unpinned") : (val ? "Hidden from your library" : "Back in your library")); renderGrid._sig = null; refresh(); renderTop(); };
+  $("#pinBtn").onclick = () => setPref("pinned", !g.pinned);
+  $("#hideBtn").onclick = () => setPref("hidden", !g.hidden);
   paintColors($("#dtop"));
   let body = $("#dbody");
   let play = $("#playBox");
@@ -462,19 +501,23 @@ function renderTop() {
       const s = g.states.find(x => x.slot === n);
       if (!s) return "";
       if (n === 0) return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span class="hint" style="margin:0">resumes automatically</span></div>`;
+      if (n === 8 && g.system === "DS") return `<div class="save st"><span>Autosave (on close)</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F8</span></span></div>`;
       return `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>`;
     })).join("");
   play.innerHTML = `<div class="row"><button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>
     ${g.has_guide ? `<button class="small" id="guideBtn">Cheat guide</button>` : ""}
     <button class="small" id="revealBtn">Show in Finder</button></div>
+    <label class="switch" style="margin-top:10px"><input type="checkbox" id="fsToggle" ${state.fullscreen ? "checked" : ""}> Launch full screen</label>
     <h3 style="margin-top:16px">Your saves</h3>
     <div class="saves">${saves}</div>
-    <div class="hint">${g.system === "DS" ? "melonDS has no autosave: save in-game or press <span class='kbd'>Shift+F1</span> before closing." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
+    <div class="hint">${g.system === "DS" ? "Closing with EmuLaun's <b>Save &amp; close</b> button makes a save state in slot 8 — press <span class='kbd'>F8</span> to resume. (Quitting melonDS directly doesn't.)" : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
     <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
       <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
     <div id="guideWrap"></div>`;
   $("#playBtn").onclick = () => play_(g.id);
   $("#revealBtn").onclick = () => api("/api/reveal", {id: g.id});
+  $("#fsToggle").onchange = async e => { await api("/api/prefs", {fullscreen: e.target.checked}); state.fullscreen = e.target.checked;
+    toast(e.target.checked ? "Games open full screen (Esc or ⌘F to leave)" : "Games open in a window"); };
   if ($("#guideBtn")) $("#guideBtn").onclick = async () => {
     const w = $("#guideWrap");
     if (w.innerHTML) { w.innerHTML = ""; return; }
