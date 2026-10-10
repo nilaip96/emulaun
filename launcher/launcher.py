@@ -129,7 +129,7 @@ def game_info(gid, files=None):
 def all_games():
     listing = {}
     out = []
-    prefs, play, sess = load_prefs(), playtime(), current_session()
+    prefs, play, sess, tags = load_prefs(), playtime(), current_session(), load_tags()
     for gid in scan_games():
         folder = os.path.dirname(gid)
         if folder not in listing:
@@ -141,6 +141,7 @@ def all_games():
         g["last"] = max(g["last"], pt["last"], sess["start"] if live else 0)
         g["pinned"] = gid in prefs["pinned"]
         g["hidden"] = gid in prefs["hidden"]
+        g["tags"] = tags.get(gid, [])
         out.append(g)
     return out
 
@@ -192,6 +193,55 @@ def playtime():
             d["last"] = max(d["last"], int(parts[2]))
     _play_cache = (key, out)
     return out
+
+
+TAGS = os.path.join(STATE_DIR, "tags.json")  # id -> ["RPG", "Pokémon", ...]
+
+
+def load_tags():
+    try:
+        return json.load(open(TAGS, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def save_tags(t):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(TAGS + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(t, f, indent=1, ensure_ascii=False)
+    os.replace(TAGS + ".tmp", TAGS)
+
+
+def stats():
+    """Playtime summary from the play log."""
+    sessions = []
+    if os.path.exists(PLAYLOG):
+        for line in open(PLAYLOG, encoding="utf-8", errors="replace"):
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit():
+                sessions.append((parts[0], int(parts[1]), int(parts[2])))
+    per_game, per_sys, per_day = {}, {}, {}
+    now = time.time()
+    for gid, a, b in sessions:
+        d = max(0, b - a)
+        per_game[gid] = per_game.get(gid, 0) + d
+        sysname = SYSTEM_BY_EXT.get(os.path.splitext(gid)[1].lower(), "?")
+        per_sys[sysname] = per_sys.get(sysname, 0) + d
+        if now - b < 7 * 86400:
+            day = datetime.fromtimestamp(a).strftime("%a")
+            per_day[day] = per_day.get(day, 0) + d
+    days = [datetime.fromtimestamp(now - i * 86400).strftime("%a") for i in range(6, -1, -1)]
+    return {"total": sum(per_game.values()), "sessions": len(sessions),
+            "systems": per_sys, "games": sorted(per_game.items(), key=lambda kv: -kv[1])[:10],
+            "week": [[d, per_day.get(d, 0)] for d in days]}
+
+
+def newest_state(gid):
+    """(slot, path) of the most recent save state, or None. mGBA: .ss0 (autosave) - .ss9, melonDS: .ml1 - .ml8."""
+    base = os.path.splitext(rom_path(gid))[0]
+    ext, slots = ("ml", range(1, 9)) if gid.lower().endswith(".nds") else ("ss", range(0, 10))
+    found = [(os.path.getmtime(f"{base}.{ext}{n}"), n, f"{base}.{ext}{n}") for n in slots if os.path.exists(f"{base}.{ext}{n}")]
+    return max(found)[1:] if found else None
 
 
 def current_session():
@@ -417,7 +467,7 @@ _F_KEYS = {1: 122, 2: 120, 3: 99, 4: 118, 5: 96, 6: 97, 7: 98, 8: 100}  # macOS 
 # grants Accessibility to here.
 _SHIFT_FKEY_JS = """ObjC.import('CoreGraphics'); ObjC.import('AppKit');
 function run(argv) {
-  const pid = parseInt(argv[0]), key = parseInt(argv[1]), activate = argv[2] === "1";
+  const pid = parseInt(argv[0]), key = parseInt(argv[1]), activate = argv[2] === "1", shift = argv[3] !== "0";
   const front = () => $.NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier === pid;
   if (activate && !front()) {
     $.NSRunningApplication.runningApplicationWithProcessIdentifier(pid).activateWithOptions(2);
@@ -426,7 +476,7 @@ function run(argv) {
   if (!front()) return "skipped";
   [true, false].forEach(down => {
     const e = $.CGEventCreateKeyboardEvent(null, key, down);
-    $.CGEventSetFlags(e, 131072);
+    $.CGEventSetFlags(e, shift ? 131072 : 0);
     $.CGEventPost(0, e);
     delay(0.05);
   });
@@ -434,10 +484,10 @@ function run(argv) {
 }"""
 
 
-def ds_save_state(pid, slot=DS_AUTOSAVE_SLOT, activate=False):
-    """Make a melonDS save state (Shift+F<slot>). Returns (sent, error)."""
+def ds_save_state(pid, slot=DS_AUTOSAVE_SLOT, activate=False, load=False):
+    """Make (Shift+F<slot>) or, with load=True, load (F<slot>) a melonDS save state. Returns (sent, error)."""
     r = subprocess.run(["osascript", "-l", "JavaScript", "-e", _SHIFT_FKEY_JS, str(pid), str(_F_KEYS[slot]),
-                        "1" if activate else "0"], capture_output=True, text=True)
+                        "1" if activate else "0", "0" if load else "1"], capture_output=True, text=True)
     return r.returncode == 0 and r.stdout.strip() == "sent", r.stderr.strip()
 
 
@@ -456,6 +506,17 @@ def ds_autosave():
             time.sleep(0.5)
             return True, ""
     return False, "melonDS didn't write a save state (is EmuLaun allowed in Accessibility?)"
+
+
+def ds_resume(rom, slot):
+    """Runs detached after launching a DS game with Resume: once the game is up, load save state <slot>."""
+    for _ in range(60):
+        r = _running_game()
+        if r and _exe_path(r[0]).endswith("/melonDS") and os.path.realpath(r[1]) == os.path.realpath(rom):
+            time.sleep(3)  # let the game boot before loading the state
+            ds_save_state(r[0], slot, activate=True, load=True)
+            return
+        time.sleep(1)
 
 
 def ds_autosave_loop(rom):
@@ -490,14 +551,18 @@ def quit_melon():
     return not running_game()
 
 
-def launch(gid):
+def launch(gid, resume=False):
     path = rom_path(gid)
     app, exe = EMULATOR[SYSTEM_BY_EXT[os.path.splitext(path)[1].lower()]]
     try:
         backup_save(gid)
     except OSError:
         pass
-    args = (["-f"] if load_prefs()["fullscreen"] else []) + [path]
+    args = ["-f"] if load_prefs()["fullscreen"] else []
+    state = newest_state(gid) if resume else None
+    if state and app == "mGBA":
+        args += ["-t", state[1]]  # mGBA loads the state at startup
+    args += [path]
     os.makedirs(STATE_DIR, exist_ok=True)
     with open(SESSION, "w") as f:
         json.dump({"id": gid, "start": int(time.time())}, f)
@@ -506,6 +571,9 @@ def launch(gid):
     env = dict(os.environ, EMULAUN_ID=gid, EMULAUN_LOG=PLAYLOG, EMULAUN_SESSION=SESSION)
     subprocess.Popen(["/bin/sh", "-c", wrapper, exe] + args, env=env, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
+    if state and app == "melonDS":  # melonDS can't load a state at startup: press F<slot> once it's running
+        subprocess.Popen([sys.executable, os.path.abspath(__file__), "--ds-resume", path, str(state[0])], stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
     if app == "melonDS" and not os.environ.get("DS_DEMO"):  # DS: EmuLaun autosaves (mGBA does its own)
         subprocess.Popen([sys.executable, os.path.abspath(__file__), "--ds-autosave", path], stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, start_new_session=True)
@@ -565,6 +633,18 @@ class H(BaseHTTPRequestHandler):
                 return self.send(200, png, "image/png", "max-age=86400")
             if u.path == "/api/cheats":
                 return self.send(200, parse_mch(q["id"]) or {"cats": [], "codes": []})
+            if u.path == "/api/stats":
+                return self.send(200, stats())
+            if u.path == "/api/state_thumb":  # mGBA save states are PNG screenshots with the state embedded
+                rp = rom_path(q["id"])
+                slot = int(q["slot"])
+                st = os.path.splitext(rp)[0] + f".ss{slot}"
+                if rp.lower().endswith(".nds") or not 0 <= slot <= 9 or not os.path.exists(st):
+                    return self.send(404, {"error": "no thumbnail"})
+                data = open(st, "rb").read()
+                if data[:8] != b"\x89PNG\r\n\x1a\n":
+                    return self.send(404, {"error": "no thumbnail"})
+                return self.send(200, data, "image/png", "max-age=3600")
             if u.path == "/api/guide":
                 p = os.path.splitext(rom_path(q["id"]))[0] + " - Cheat Guide.txt"
                 return self.send(200, open(p, encoding="utf-8").read(), "text/plain; charset=utf-8")
@@ -592,7 +672,7 @@ class H(BaseHTTPRequestHandler):
                         return self.send(409, {"error": "running"})
                     if not quit_melon():
                         return self.send(500, {"error": "Couldn't close the emulator - close it yourself (Cmd+Q) and try again."})
-                launch(gid)
+                launch(gid, resume=bool(body.get("resume")))
                 return self.send(200, {"ok": True})
             if p == "/api/quit":
                 r = running_game()
@@ -603,6 +683,17 @@ class H(BaseHTTPRequestHandler):
                         return self.send(409, {"error": "autosave", "detail": err})
                     saved = DS_AUTOSAVE_SLOT
                 return self.send(200, {"ok": quit_melon(), "saved_slot": saved})
+            if p == "/api/tags":
+                gid = body["id"]; rom_path(gid)
+                t = load_tags()
+                clean_tags = []
+                for x in body["tags"]:
+                    x = re.sub(r"\s+", " ", str(x)).strip()[:30]
+                    if x and x.lower() not in [c.lower() for c in clean_tags]:
+                        clean_tags.append(x)
+                t[gid] = clean_tags
+                save_tags(t)
+                return self.send(200, {"ok": True, "tags": clean_tags})
             if p == "/api/prefs":
                 prefs = load_prefs()
                 if "fullscreen" in body:
@@ -638,6 +729,8 @@ class H(BaseHTTPRequestHandler):
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--ds-autosave":
         return ds_autosave_loop(sys.argv[2])
+    if len(sys.argv) > 3 and sys.argv[1] == "--ds-resume":
+        return ds_resume(sys.argv[2], int(sys.argv[3]))
     url = f"http://127.0.0.1:{PORT}/"
     try:  # is a launcher already answering on this port?
         socket.create_connection(("127.0.0.1", PORT), timeout=0.5).close()

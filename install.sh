@@ -51,7 +51,7 @@ else
   say "mGBA already installed"
 fi
 # mGBA settings live in ~/.config/mgba on macOS. Merge in: same keys as the suggested melonDS
-# setup, auto-load cheat files, and autosave + resume (Game.ss0 every ~10 s and on close).
+# setup, auto-load cheat files, and autosave (Game.ss0 every ~10 s and on close; EmuLaun's Resume loads it).
 if ! pgrep -f "mGBA.app/Contents/MacOS/mGBA" >/dev/null; then
   mkdir -p "$HOME/.config/mgba"
   python3 - "$HOME/.config/mgba/config.ini" <<'PY'
@@ -65,7 +65,8 @@ for sec in ("gba.input.QT_K", "gb.input.QT_K"):
     if not c.has_section(sec): c.add_section(sec)
     for k, v in keys.items(): c.set(sec, k, str(v))
 if not c.has_section("ports.qt"): c.add_section("ports.qt")
-for k in ("autosave", "autoload", "cheatAutoload", "cheatAutosave"): c.set("ports.qt", k, "1")
+for k in ("autosave", "cheatAutoload", "cheatAutosave"): c.set("ports.qt", k, "1")
+c.set("ports.qt", "autoload", "0")  # EmuLaun's Resume loads the autosave; Play starts from the in-game save
 for k, v in (("lockIntegerScaling", "1"), ("lockAspectRatio", "1"), ("resampleVideo", "0")): c.set("ports.qt", k, v)  # sharp pixels
 with open(p, "w") as f: c.write(f, space_around_delimiters=False)
 PY

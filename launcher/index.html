@@ -103,6 +103,48 @@ body.listmode main{padding-bottom:20px}
 button.chip{padding:3px 10px;font-size:12px;border-radius:999px;background:rgba(0,0,0,.25)}
 button.chip.on{border-color:color-mix(in srgb,var(--c) 70%,transparent);background:color-mix(in srgb,var(--c) 22%,transparent)}
 #hiddenBtn.on{border-color:var(--cyan);color:var(--cyan)}
+.topzone{max-width:1900px;margin:0 auto;padding:18px 28px 0}
+.topzone:empty{display:none}
+.continue{--c:var(--violet);display:flex;align-items:center;gap:18px;padding:16px 18px;border-radius:18px;cursor:pointer;margin-bottom:14px;
+  background:linear-gradient(110deg,color-mix(in srgb,var(--c) 28%,#0b0b10),var(--panel) 65%);border:1px solid color-mix(in srgb,var(--c) 45%,var(--line));
+  box-shadow:0 10px 40px color-mix(in srgb,var(--c) 18%,transparent)}
+.continue .ic{width:76px;height:76px;border-radius:16px;flex:none;display:grid;place-items:center;background:rgba(0,0,0,.3)}
+.continue .ic img{width:60px;height:60px;image-rendering:pixelated;border-radius:12px}
+.continue .txt{flex:1;min-width:0}
+.continue .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;color:color-mix(in srgb,var(--c) 70%,#fff)}
+.continue .t{font-size:20px;font-weight:750;margin:2px 0}
+.continue .m{font-size:13px;color:#b9bccb}
+.continue .primary{padding:12px 22px;font-size:15px}
+.tags-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.tags-bar::-webkit-scrollbar{display:none}
+.tagchip{flex:none;font-size:12.5px;padding:5px 12px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:#cfd2dc;white-space:nowrap}
+.tagchip.on{background:rgba(244,114,182,.14);border-color:rgba(244,114,182,.55);color:var(--pink)}
+.tag-edit{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.tag-edit .tagchip{padding:3px 4px 3px 10px;display:inline-flex;align-items:center;gap:2px}
+.tag-edit .tagchip button{border:none;background:none;padding:0 5px;color:inherit;font-size:14px;line-height:1}
+.tag-edit input{width:90px;padding:4px 10px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--ink);font:12.5px inherit}
+button .sub{font-weight:500;opacity:.75;font-size:12.5px;margin-left:6px}
+.save .thumb{width:60px;height:40px;border-radius:6px;image-rendering:pixelated;object-fit:cover;margin-right:4px;vertical-align:middle;border:1px solid var(--line)}
+.save:has(.thumb){grid-template-columns:auto 1fr 1.2fr auto}
+#statsBtn.on{border-color:var(--cyan);color:var(--cyan)}
+.stats{display:flex;flex-direction:column;gap:16px}
+.stat-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.stat-tiles .tile{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.stat-tiles .big{font-size:28px;font-weight:800;background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat-tiles .lbl{color:var(--muted);font-size:12.5px;margin-top:2px}
+.stat-cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.stat-cols{grid-template-columns:1fr}}
+.bar-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.6fr) 64px;gap:10px;align-items:center;padding:6px 0;font-size:13.5px}
+.bar-row[data-id]{cursor:pointer}
+.bar-row .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-row .bar{height:10px;border-radius:6px;background:var(--panel);overflow:hidden}
+.bar-row .bar i{display:block;height:100%;border-radius:6px}
+.bar-row .val{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:150px}
+.week .day{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.week .col{flex:1;width:70%;display:flex;align-items:flex-end;background:var(--panel);border-radius:8px;overflow:hidden}
+.week .col i{display:block;width:100%;background:linear-gradient(180deg,var(--cyan),var(--violet));border-radius:8px}
+.week .d{font-size:11.5px;color:var(--muted)} .week .v{font-size:10.5px;color:var(--muted);min-height:13px}
 /* systems: badge, box art, fallback tiles */
 .sys{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.06em;padding:1px 5px;border-radius:5px;vertical-align:1px;
   color:var(--s);border:1px solid color-mix(in srgb,var(--s) 45%,transparent);background:color-mix(in srgb,var(--s) 12%,transparent)}
@@ -186,11 +228,13 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
   <input type="search" id="q" placeholder="Search games…">
   <div class="seg" id="view"><button data-v="grid" title="Grid">▦ Grid</button><button data-v="list" title="List">☰ List</button></div>
   <div class="seg" id="sys"></div>
+  <button class="small" id="statsBtn">📊 Stats</button>
   <button class="small" id="hiddenBtn" style="display:none"></button>
   <div class="seg" id="sort"><button data-s="recent">Recent</button><button data-s="az">A–Z</button><button data-s="color">Color</button></div>
   <div class="spacer"></div>
   <div class="status" id="status" style="display:none"></div>
 </header>
+<section id="top" class="topzone"></section>
 <main id="main"></main>
 
 <div class="overlay" id="ov"><div class="modal" id="dr" role="dialog" aria-modal="true"></div></div>
@@ -200,7 +244,10 @@ pre.guide{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,monospace;backgr
 const $ = s => document.querySelector(s);
 let state = {games: [], running: null, cheats_global: false};
 let current = null, cheatData = null;
-let showHidden = false;
+let showHidden = false, statsMode = false;
+// selected collection tags: a game must have ALL of them
+let tagFilters = (() => { try { return JSON.parse(localStorage.getItem("tags") || "[]"); } catch { return []; } })();
+const hasTags = (g, tags) => tags.every(t => (g.tags || []).includes(t));
 function renderHiddenBtn() {
   const n = state.games.filter(g => g.hidden).length, b = $("#hiddenBtn");
   b.style.display = n || showHidden ? "" : "none";
@@ -288,9 +335,11 @@ function hueKey(c) {
 }
 let colorResort;
 function paintColors(root) {
-  root.querySelectorAll(".fb[data-id]").forEach(fb => fb.closest(".card, .modal, .li, .detail").style.setProperty("--c", colorFor(fb.dataset.id)));
+  const HOSTS = ".card, .modal, .li, .detail, .continue";
+  root.querySelectorAll(".fb[data-id]").forEach(fb => { const h = fb.closest(HOSTS); if (h) h.style.setProperty("--c", colorFor(fb.dataset.id)); });
   root.querySelectorAll("img[data-id]").forEach(img => {
-    const id = img.dataset.id, host = img.closest(".card, .modal, .li, .detail");
+    const id = img.dataset.id, host = img.closest(HOSTS);
+    if (!host) return;
     host.style.setProperty("--c", colorFor(id));
     const go = () => {
       if (colors[id]) return;
@@ -318,7 +367,7 @@ async function refresh() {
     if (["grid", "list"].includes(h.get("view")) && h.get("view") !== viewMode) document.querySelector(`#view button[data-v="${h.get("view")}"]`).click();
     if (id && state.games.some(g => g.id === id)) setTimeout(() => openGame(id), 0);
   }
-  const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on, g.pinned, g.hidden, Math.floor(g.played / 60)]), state.running]);
+  const gsig = JSON.stringify([state.games.map(g => [g.id, g.title, g.save, g.last, g.cheats_on, g.pinned, g.hidden, Math.floor(g.played / 60), (g.tags || []).join(","), g.states.length]), state.running]);
   if (gsig !== renderGrid._sig) { renderGrid._sig = gsig; renderGrid(); }
   if (current) {
     const g = state.games.find(g => g.id === current.id);
@@ -357,7 +406,8 @@ let ordered = [];  // games in on-screen order (for arrow-key browsing)
 
 function sortedGroups() {
   const q = $("#q").value.trim().toLowerCase();
-  const matches = state.games.filter(g => (sysFilter === "all" || g.system === sysFilter) && (!q || (g.title + " " + g.name).toLowerCase().includes(q)));
+  const matches = state.games.filter(g => (sysFilter === "all" || g.system === sysFilter) && hasTags(g, tagFilters)
+    && (!q || (g.title + " " + g.name + " " + (g.tags || []).join(" ")).toLowerCase().includes(q)));
   if (showHidden) return [["Hidden games", matches.filter(g => g.hidden).sort((a, b) => a.title.localeCompare(b.title))]].filter(([, l]) => l.length);
   const visible = matches.filter(g => !g.hidden);
   const byName = (a, b) => a.title.localeCompare(b.title);
@@ -377,6 +427,9 @@ const playedTag = g => g.played >= 60 ? `<span class="pt">⏱ ${fmtPlay(g.played
 
 function renderGrid() {
   document.querySelectorAll("#view button").forEach(b => b.classList.toggle("on", b.dataset.v === viewMode));
+  $("#statsBtn").classList.toggle("on", statsMode);
+  renderTopZone();
+  if (statsMode) return renderStats();
   const groups = sortedGroups();
   ordered = groups.flatMap(([, l]) => l);
   if (splitView()) return renderList(groups);
@@ -401,6 +454,74 @@ function renderGrid() {
   });
 }
 
+// ---- top zone: "Continue" tile for the last game played + collection (tag) chips ----
+function renderTopZone() {
+  const z = $("#top");
+  if (statsMode || showHidden) { z.innerHTML = ""; return; }
+  const q = $("#q").value.trim();
+  const last = state.games.filter(g => !g.hidden && g.last && (g.played || g.states.length || g.save)).sort((a, b) => b.last - a.last)[0];
+  const counts = {};
+  // counts = games that would match if this tag were added to the current selection
+  state.games.filter(g => !g.hidden && (sysFilter === "all" || g.system === sysFilter) && hasTags(g, tagFilters))
+    .forEach(g => (g.tags || []).forEach(t => counts[t] = (counts[t] || 0) + 1));
+  tagFilters.forEach(t => counts[t] = counts[t] || 0);
+  const tags = Object.keys(counts).sort((a, b) => tagFilters.includes(b) - tagFilters.includes(a) || counts[b] - counts[a] || a.localeCompare(b));
+  const cont = last && !q && !tagFilters.length ? `
+    <div class="continue" data-id="${esc(last.id)}">
+      <div class="ic">${iconHTML(last)}</div>
+      <div class="txt"><div class="lbl">Continue playing</div><div class="t">${esc(last.title)} ${sysBadge(last)}</div>
+        <div class="m">${last.played >= 60 ? `⏱ ${fmtPlay(last.played)} played · ` : ""}${last.states.length ? "has a resume point" : last.save ? "Saved " + esc(last.save) : ""}</div></div>
+      <button class="primary" id="contResume">${last.states.length ? "⟲ Resume" : "▶ Play"}</button>
+    </div>` : "";
+  const chips = tags.length ? `<div class="tags-bar"><button class="tagchip ${!tagFilters.length ? "on" : ""}" data-t="">All</button>${tags.map(t =>
+    `<button class="tagchip ${tagFilters.includes(t) ? "on" : ""}" data-t="${esc(t)}">${tagFilters.includes(t) ? "✓ " : ""}${esc(t)} <span class="cnt">${counts[t]}</span></button>`).join("")}</div>` : "";
+  const html = cont + chips;
+  if (z.dataset.html === html) return;
+  z.dataset.html = html; z.innerHTML = html;
+  paintColors(z);
+  const c = z.querySelector(".continue");
+  if (c) {
+    c.onclick = e => { if (e.target.closest("#contResume")) return; openGame(c.dataset.id); };
+    $("#contResume").onclick = () => play_(last.id, last.states.length > 0);
+  }
+  z.querySelectorAll(".tagchip").forEach(b => b.onclick = () => {
+    const t = b.dataset.t;
+    tagFilters = !t ? [] : tagFilters.includes(t) ? tagFilters.filter(x => x !== t) : [...tagFilters, t];
+    try { localStorage.setItem("tags", JSON.stringify(tagFilters)); } catch {}
+    renderGrid();
+  });
+}
+
+// ---- stats page ----
+async function renderStats() {
+  document.body.classList.remove("listmode");
+  const st = await api("/api/stats").catch(() => null);
+  if (!statsMode) return;
+  if (!st) { $("#main").innerHTML = `<div class="empty">Couldn't load stats.</div>`; return; }
+  const byId = Object.fromEntries(state.games.map(g => [g.id, g]));
+  const maxGame = Math.max(1, ...st.games.map(x => x[1])), maxDay = Math.max(1, ...st.week.map(x => x[1]));
+  const sysTotal = Math.max(1, ...Object.values(st.systems));
+  $("#main").innerHTML = `<div class="stats">
+    <div class="stat-tiles">
+      <div class="tile"><div class="big">${fmtPlay(st.total) || "0m"}</div><div class="lbl">total playtime</div></div>
+      <div class="tile"><div class="big">${st.sessions}</div><div class="lbl">play sessions</div></div>
+      <div class="tile"><div class="big">${state.games.length}</div><div class="lbl">games in library</div></div>
+      <div class="tile"><div class="big">${state.games.filter(g => g.played >= 60).length}</div><div class="lbl">games played</div></div>
+    </div>
+    <div class="stat-cols">
+      <div class="box"><h3>Most played</h3>${st.games.length ? st.games.map(([id, secs]) => { const g = byId[id];
+        return `<div class="bar-row" data-id="${esc(id)}"><span class="name">${esc(g ? g.title : id)}</span>
+          <span class="bar"><i style="width:${Math.max(3, secs / maxGame * 100)}%;background:${g ? colorFor(g.id) : "var(--violet)"}"></i></span><span class="val">${fmtPlay(secs)}</span></div>`; }).join("")
+        : `<div class="hint">Play something and it shows up here.</div>`}</div>
+      <div class="box"><h3>This week</h3><div class="week">${st.week.map(([d, secs]) =>
+        `<div class="day"><span class="col"><i style="height:${secs ? Math.max(4, secs / maxDay * 100) : 0}%"></i></span><span class="d">${d}</span><span class="v">${fmtPlay(secs)}</span></div>`).join("")}</div>
+        <h3 style="margin-top:18px">By system</h3>${["DS", "GBA", "GBC", "GB"].filter(k => st.systems[k]).map(k =>
+          `<div class="bar-row"><span class="name">${k}</span><span class="bar"><i style="width:${st.systems[k] / sysTotal * 100}%;background:${SYS_COLOR[k]}"></i></span><span class="val">${fmtPlay(st.systems[k])}</span></div>`).join("") || `<div class="hint">No sessions yet.</div>`}
+      </div>
+    </div></div>`;
+  document.querySelectorAll(".bar-row[data-id]").forEach(r => r.onclick = () => { if (byId[r.dataset.id]) { statsMode = false; renderGrid(); openGame(r.dataset.id); } });
+}
+
 function renderList(groups) {
   document.body.classList.add("listmode");
   if (!$("#split")) {
@@ -408,6 +529,8 @@ function renderList(groups) {
       <section class="detail" id="detail"></section></div>`;
     if (current) openGame(current.id); else showPlaceholder();
   }
+  const sp = $("#split");
+  sp.style.height = Math.max(420, innerHeight - sp.getBoundingClientRect().top - window.scrollY - 20) + "px";
   const sel = current && current.id;
   $("#listCol").innerHTML = !ordered.length ? `<div class="empty">No games found.</div>` : groups.map(([label, list]) => `
     ${sectionLabel(label, list.length)}
@@ -485,12 +608,18 @@ function renderTop() {
     <div class="m">${g.played >= 60 ? `Played ${fmtPlay(g.played)} · ` : ""}${g.save ? "Last saved " + esc(g.save) : "No save yet"}</div>
     <div class="row" style="margin-top:8px;gap:6px">
       <button class="small chip ${g.pinned ? "on" : ""}" id="pinBtn">${g.pinned ? "📌 Pinned" : "📌 Pin"}</button>
-      <button class="small chip ${g.hidden ? "on" : ""}" id="hideBtn">${g.hidden ? "🙈 Hidden" : "🙈 Hide"}</button></div></div>
+      <button class="small chip ${g.hidden ? "on" : ""}" id="hideBtn">${g.hidden ? "🙈 Hidden" : "🙈 Hide"}</button></div>
+    <div class="tag-edit">${(g.tags || []).map(t => `<span class="tagchip on">${esc(t)}<button data-rm="${esc(t)}" title="Remove tag">×</button></span>`).join("")}
+      <input id="tagAdd" list="tagList" placeholder="+ tag" maxlength="30"><datalist id="tagList">${[...new Set(state.games.flatMap(x => x.tags || []))].sort().map(t => `<option value="${esc(t)}">`).join("")}</datalist></div></div>
     <button class="close" aria-label="Close">×</button>`;
   $("#dtop .close").onclick = closeDrawer;
   const setPref = async (key, val) => { await api("/api/prefs", {id: g.id, [key]: val}); g[key] = val;
     toast(key === "pinned" ? (val ? "Pinned to the top" : "Unpinned") : (val ? "Hidden from your library" : "Back in your library")); renderGrid._sig = null; refresh(); renderTop(); };
   $("#pinBtn").onclick = () => setPref("pinned", !g.pinned);
+  const saveTags = async tags => { const r = await api("/api/tags", {id: g.id, tags}); g.tags = r.tags; renderGrid._sig = null; refresh(); renderTop(); };
+  $("#dtop").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => saveTags(g.tags.filter(t => t !== b.dataset.rm)));
+  $("#tagAdd").onkeydown = e => { if (e.key === "Enter" && e.target.value.trim()) saveTags([...(g.tags || []), e.target.value.trim()]); };
+  $("#tagAdd").onchange = e => { if (e.target.value.trim() && state.games.some(x => (x.tags || []).includes(e.target.value.trim()))) saveTags([...(g.tags || []), e.target.value.trim()]); };
   $("#hideBtn").onclick = () => setPref("hidden", !g.hidden);
   paintColors($("#dtop"));
   let body = $("#dbody");
@@ -500,21 +629,27 @@ function renderTop() {
     .concat([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => {
       const s = g.states.find(x => x.slot === n);
       if (!s) return "";
-      if (n === 0) return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span class="hint" style="margin:0">resumes automatically</span></div>`;
+      const thumb = g.system !== "DS" ? `<img class="thumb" src="/api/state_thumb?id=${encodeURIComponent(g.id)}&slot=${n}&t=${s.ts}" alt="" onerror="this.remove()">` : "";
+      if (n === 0) return `<div class="save st">${thumb}<span>Autosave</span><span>${esc(s.time)}</span><span class="hint" style="margin:0">Resume loads it</span></div>`;
       if (n === 8 && g.system === "DS") return `<div class="save st"><span>Autosave</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F8</span></span></div>`;
-      return `<div class="save st"><span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>`;
+      return `<div class="save st">${thumb}<span>Save state ${n}</span><span>${esc(s.time)}</span><span>load: <span class="kbd">F${n}</span></span></div>`;
     })).join("");
-  play.innerHTML = `<div class="row"><button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>
+  const newest = [...g.states].sort((a, b) => b.ts - a.ts)[0];
+  const resumeLbl = newest ? (newest.slot === 0 || (newest.slot === 8 && g.system === "DS") ? "autosave" : "save state " + newest.slot) + " · " + newest.time : "";
+  play.innerHTML = `<div class="row">${newest && !running ? `<button class="primary" id="resumeBtn" style="flex:1;padding:12px">⟲ Resume <span class="sub">${esc(resumeLbl)}</span></button>
+      <button class="small" id="playBtn" title="Start from the in-game save">▶ Play</button>` :
+      `<button class="primary" id="playBtn" style="flex:1;padding:12px">${running ? "Restart game" : "▶ Play"}</button>`}
     ${g.has_guide ? `<button class="small" id="guideBtn">Cheat guide</button>` : ""}
     <button class="small" id="revealBtn">Show in Finder</button></div>
     <label class="switch" style="margin-top:10px"><input type="checkbox" id="fsToggle" ${state.fullscreen ? "checked" : ""}> Launch full screen</label>
     <h3 style="margin-top:16px">Your saves</h3>
     <div class="saves">${saves}</div>
-    <div class="hint">${g.system === "DS" ? "EmuLaun autosaves DS games to slot 8 every 5 minutes while you play, and again when you use <b>Save &amp; close</b>. Press <span class='kbd'>F8</span> after opening the game to resume." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
+    <div class="hint"><b>Resume</b> opens the game at your newest save state; <b>Play</b> starts from the in-game save. ${g.system === "DS" ? "DS games autosave to slot 8 every 5 minutes and on <b>Save &amp; close</b>." : "mGBA autosaves every few seconds and when you close it."}</div>
     <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
       <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
     <div id="guideWrap"></div>`;
   $("#playBtn").onclick = () => play_(g.id);
+  if ($("#resumeBtn")) $("#resumeBtn").onclick = () => play_(g.id, true);
   $("#revealBtn").onclick = () => api("/api/reveal", {id: g.id});
   $("#fsToggle").onchange = async e => { await api("/api/prefs", {fullscreen: e.target.checked}); state.fullscreen = e.target.checked;
     toast(e.target.checked ? "Games open full screen (Esc or ⌘F to leave)" : "Games open in a window"); };
@@ -526,14 +661,14 @@ function renderTop() {
   };
 }
 
-async function play_(id) {
-  try { await api("/api/play", {id}); }
+async function play_(id, resume = false) {
+  try { await api("/api/play", {id, resume}); }
   catch (e) {
     if (e.status !== 409) return toast(e.message);
     if (!confirm("A game is already open. Close it and start this one?\n\nSave in-game first, or you'll lose unsaved progress.")) return;
-    try { await api("/api/play", {id, force: true}); } catch (e2) { return toast(e2.message); }
+    try { await api("/api/play", {id, resume, force: true}); } catch (e2) { return toast(e2.message); }
   }
-  toast("Starting game…"); setTimeout(refresh, 1500);
+  toast(resume ? "Resuming…" : "Starting game…"); setTimeout(refresh, 1500);
 }
 
 function renderCheats() {
@@ -618,6 +753,7 @@ document.querySelectorAll("#view button").forEach(b => b.onclick = () => {
   if (keep && splitView()) openGame(keep);
 });
 paintView();
+$("#statsBtn").onclick = () => { statsMode = !statsMode; if (statsMode) closeDrawer(); $("#main").innerHTML = ""; renderGrid(); };
 let lastSplit = splitView();
 addEventListener("resize", () => {
   if (splitView() === lastSplit) return;
