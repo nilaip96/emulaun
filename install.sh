@@ -66,10 +66,28 @@ for sec in ("gba.input.QT_K", "gb.input.QT_K"):
     for k, v in keys.items(): c.set(sec, k, str(v))
 if not c.has_section("ports.qt"): c.add_section("ports.qt")
 for k in ("autosave", "autoload", "cheatAutoload", "cheatAutosave"): c.set("ports.qt", k, "1")
+for k, v in (("lockIntegerScaling", "1"), ("lockAspectRatio", "1"), ("resampleVideo", "0")): c.set("ports.qt", k, v)  # sharp pixels
 with open(p, "w") as f: c.write(f, space_around_delimiters=False)
 PY
 else
   say "mGBA is open - skipping its settings (re-run ./install.sh after closing it)"
+fi
+
+# melonDS: sharper DS graphics (OpenGL renderer at 3x resolution). Its settings file appears after first launch.
+MELON_CFG="$HOME/Library/Preferences/melonDS/melonDS.toml"
+if [ -f "$MELON_CFG" ] && ! pgrep -f "melonDS.app/Contents/MacOS/melonDS" >/dev/null; then
+  python3 - "$MELON_CFG" <<'PY'
+import re, sys
+p = sys.argv[1]; s = open(p).read()
+def setkey(s, section, key, val):
+    pat = rf"(^\[{re.escape(section)}\]\n(?:(?!\[).*\n)*?){re.escape(key)} = .*\n"
+    if re.search(pat, s, re.M):
+        return re.sub(pat, lambda m: m.group(1) + f"{key} = {val}\n", s, count=1, flags=re.M)
+    return re.sub(rf"(^\[{re.escape(section)}\]\n)", lambda m: m.group(1) + f"{key} = {val}\n", s, count=1, flags=re.M)
+for sec, k, v in [("3D", "Renderer", "1"), ("3D.GL", "ScaleFactor", "3"), ("3D.GL", "BetterPolygons", "true"), ("Screen", "UseGL", "true")]:
+    s = setkey(s, sec, k, v)
+open(p, "w").write(s)
+PY
 fi
 
 # 3. folders + offline cheat databases
