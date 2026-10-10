@@ -406,7 +406,7 @@ def set_global_cheats(on):
 DS_AUTOSAVE_SLOT = 8  # melonDS: Shift+F8 saves slot 8 (Game.ml8), F8 loads it
 
 
-DS_AUTOSAVE_SECS = int(os.environ.get("DS_AUTOSAVE_SECS", "60"))
+DS_AUTOSAVE_SECS = int(os.environ.get("DS_AUTOSAVE_SECS", "300"))  # every 5 minutes
 _F_KEYS = {1: 122, 2: 120, 3: 99, 4: 118, 5: 96, 6: 97, 7: 98, 8: 100}  # macOS virtual key codes
 
 
@@ -459,7 +459,7 @@ def ds_autosave():
 
 
 def ds_autosave_loop(rom):
-    """Runs detached alongside a DS game (survives EmuLaun closing): save a state every minute."""
+    """Runs detached alongside a DS game (survives EmuLaun closing): save a state every 5 minutes."""
     pid = None
     for _ in range(60):  # wait for melonDS to start
         r = _running_game()

@@ -510,7 +510,7 @@ function renderTop() {
     <label class="switch" style="margin-top:10px"><input type="checkbox" id="fsToggle" ${state.fullscreen ? "checked" : ""}> Launch full screen</label>
     <h3 style="margin-top:16px">Your saves</h3>
     <div class="saves">${saves}</div>
-    <div class="hint">${g.system === "DS" ? "EmuLaun autosaves DS games to slot 8 every minute while you play, and again when you use <b>Save &amp; close</b>. Press <span class='kbd'>F8</span> after opening the game to resume." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
+    <div class="hint">${g.system === "DS" ? "EmuLaun autosaves DS games to slot 8 every 5 minutes while you play, and again when you use <b>Save &amp; close</b>. Press <span class='kbd'>F8</span> after opening the game to resume." : "mGBA autosaves every few seconds and when you close it, and picks up where you left off."}</div>
     <div class="hint">Once the game is open: <span class="kbd">F1</span>–<span class="kbd">F8</span> loads a save state,
       <span class="kbd">Shift+F1</span>–<span class="kbd">Shift+F8</span> saves one. Hold <span class="kbd">Tab</span> to fast-forward.</div>
     <div id="guideWrap"></div>`;
